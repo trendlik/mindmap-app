@@ -8,9 +8,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` — production build (output in `dist/`)
 - `npm run preview` — serve production build locally
 - `npx tsc --noEmit` — type-check without emitting
-- `firebase deploy` — deploy hosting + Firestore rules
+- `firebase deploy` — deploy hosting + Firestore rules (manual)
 
 No test runner or linter is configured.
+
+## CI/CD (GitHub Actions)
+
+Two workflows in `.github/workflows/`:
+
+- **ci.yml** — Runs on PRs and pushes to `main`. Steps: type-check (`tsc --noEmit`) + production build.
+- **deploy.yml** — Runs on push to `main`. Builds, then deploys to Firebase Hosting (live channel) and deploys Firestore rules.
+
+### Required GitHub secrets
+
+| Secret | Description |
+|--------|-------------|
+| `VITE_FIREBASE_API_KEY` | Firebase API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase app ID |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON key (for deploy) |
+
+To generate the service account key: Firebase Console → Project Settings → Service accounts → Generate new private key. Paste the full JSON as the `FIREBASE_SERVICE_ACCOUNT` secret value.
 
 ## Architecture
 
