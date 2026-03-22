@@ -20,11 +20,20 @@ export interface Edge {
   to: string;
 }
 
+export interface CustomLink {
+  id: string;
+  from: string;
+  to: string;
+  style: 'arrow' | 'line';
+  stroke: 'solid' | 'dashed';
+}
+
 export interface MindMap {
   id: string;
   name: string;
   nodes: Record<string, MindMapNode>;
   edges: Edge[];
+  links?: CustomLink[];
   tx: number;
   ty: number;
   scale: number;
@@ -266,7 +275,12 @@ export function useMindMapStore(userId: string | null) {
     const newNodes = { ...allNodes };
     toDelete.forEach(id => delete newNodes[id]);
     const newEdges = allEdges.filter(e => !toDelete.has(e.from) && !toDelete.has(e.to));
-    updateMap(mapId, m => ({ ...m, nodes: newNodes, edges: newEdges }));
+    updateMap(mapId, m => ({
+      ...m,
+      nodes: newNodes,
+      edges: newEdges,
+      links: (m.links || []).filter(l => !toDelete.has(l.from) && !toDelete.has(l.to)),
+    }));
   }, [updateMap]);
 
   const applyAutoLayout = useCallback((mapId: string, canvasHeight: number, currentScale: number, currentTy: number) => {
@@ -303,6 +317,29 @@ export function useMindMapStore(userId: string | null) {
     });
   }, [updateMap]);
 
+  const addLink = useCallback((mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke']) => {
+    const id = uid();
+    updateMap(mapId, m => ({
+      ...m,
+      links: [...(m.links || []), { id, from, to, style, stroke }],
+    }));
+    return id;
+  }, [updateMap]);
+
+  const updateLink = useCallback((mapId: string, linkId: string, changes: Partial<CustomLink>) => {
+    updateMap(mapId, m => ({
+      ...m,
+      links: (m.links || []).map(l => l.id === linkId ? { ...l, ...changes } : l),
+    }));
+  }, [updateMap]);
+
+  const deleteLink = useCallback((mapId: string, linkId: string) => {
+    updateMap(mapId, m => ({
+      ...m,
+      links: (m.links || []).filter(l => l.id !== linkId),
+    }));
+  }, [updateMap]);
+
   return {
     maps,
     activeMapId,
@@ -314,6 +351,9 @@ export function useMindMapStore(userId: string | null) {
     addNode,
     updateNode,
     deleteNode,
+    addLink,
+    updateLink,
+    deleteLink,
     applyAutoLayout,
   };
 }

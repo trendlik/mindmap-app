@@ -19,6 +19,9 @@ export default function App() {
     addNode,
     updateNode,
     deleteNode,
+    addLink,
+    updateLink,
+    deleteLink,
     applyAutoLayout,
   } = useMindMapStore(user?.uid ?? null);
 
@@ -44,6 +47,9 @@ export default function App() {
           onAddNode={addNode}
           onUpdateNode={updateNode}
           onDeleteNode={deleteNode}
+          onAddLink={addLink}
+          onUpdateLink={updateLink}
+          onDeleteLink={deleteLink}
           onAutoLayout={applyAutoLayout}
           onExportJson={exportJson}
           onExportImg={exportSvg}

@@ -10,7 +10,16 @@ export function exportJson(map: MindMap) {
       x: Math.round(n.x),
       y: Math.round(n.y),
       parentId: n.parentId || null,
+      ...(n.notes ? { notes: n.notes } : {}),
     })),
+    ...(map.links?.length ? {
+      links: map.links.map(l => ({
+        from: l.from,
+        to: l.to,
+        style: l.style,
+        stroke: l.stroke,
+      })),
+    } : {}),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -61,6 +70,18 @@ export function exportSvg(map: MindMap) {
     edgeSvg += `<path d="M${a.x},${ay} C${a.x},${my} ${b.x},${my} ${b.x},${by}" fill="none" stroke="${c.stroke}" stroke-width="1.5" stroke-opacity="0.5"/>`;
   });
 
+  let linkSvg = '';
+  let hasArrow = false;
+  (map.links || []).forEach(link => {
+    const a = map.nodes[link.from];
+    const b = map.nodes[link.to];
+    if (!a || !b) return;
+    if (link.style === 'arrow') hasArrow = true;
+    const dash = link.stroke === 'dashed' ? ' stroke-dasharray="6 3"' : '';
+    const marker = link.style === 'arrow' ? ' marker-end="url(#ah)"' : '';
+    linkSvg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#888" stroke-width="1.5"${dash}${marker}/>`;
+  });
+
   let nodeSvg = '';
   nodes.forEach(n => {
     const { w, h } = measureNode(n.label);
@@ -73,8 +94,12 @@ export function exportSvg(map: MindMap) {
 </g>`;
   });
 
+  const arrowDef = hasArrow ? '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#888"/></marker></defs>' : '';
+
   const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="${minX} ${minY} ${W} ${H}" style="background:#f5f3ef">
+${arrowDef}
 ${edgeSvg}
+${linkSvg}
 ${nodeSvg}
 </svg>`;
 

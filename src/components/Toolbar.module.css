@@ -44,6 +44,11 @@
   color: var(--accent);
 }
 
+.btn.small {
+  padding: 4px 6px;
+  gap: 0;
+}
+
 .btn.danger:hover:not(:disabled) {
   background: #fdecea;
   color: #c0392b;

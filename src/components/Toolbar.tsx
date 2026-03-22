@@ -1,3 +1,4 @@
+import type { CustomLink } from '../store/useMindMapStore';
 import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
@@ -5,15 +6,31 @@ interface ToolbarProps {
   onAddSibling: () => void;
   onDelete: () => void;
   onToggleNotes: () => void;
+  onStartLink: () => void;
+  onToggleLinkStyle: () => void;
+  onToggleLinkStroke: () => void;
+  onSetLinkStyle: (s: CustomLink['style']) => void;
+  onSetLinkStroke: (s: CustomLink['stroke']) => void;
   onLayout: () => void;
   onFitView: () => void;
   onExportJson: () => void;
   onExportImg: () => void;
   hasSelected: boolean;
   notesOpen: boolean;
+  isLinking: boolean;
+  selectedLink: CustomLink | null;
+  linkStyle: CustomLink['style'];
+  linkStroke: CustomLink['stroke'];
 }
 
-export default function Toolbar({ onAddChild, onAddSibling, onDelete, onToggleNotes, onLayout, onFitView, onExportJson, onExportImg, hasSelected, notesOpen }: ToolbarProps) {
+export default function Toolbar(props: ToolbarProps) {
+  const {
+    onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink,
+    onToggleLinkStyle, onToggleLinkStroke, onSetLinkStyle, onSetLinkStroke,
+    onLayout, onFitView, onExportJson, onExportImg,
+    hasSelected, notesOpen, isLinking, selectedLink, linkStyle, linkStroke,
+  } = props;
+
   return (
     <div className={styles.toolbar}>
       <button className={styles.btn} onClick={onAddChild}>
@@ -24,7 +41,14 @@ export default function Toolbar({ onAddChild, onAddSibling, onDelete, onToggleNo
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8M5 1v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
         sibling
       </button>
-      <button className={`${styles.btn} ${styles.danger}`} onClick={onDelete} disabled={!hasSelected}>
+      <button className={`${styles.btn} ${isLinking ? styles.active : ''}`} onClick={onStartLink} disabled={!hasSelected && !isLinking}>
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <path d="M2 9L9 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M6.5 2H9V4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        link
+      </button>
+      <button className={`${styles.btn} ${styles.danger}`} onClick={onDelete} disabled={!hasSelected && !selectedLink}>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
         delete
       </button>
@@ -32,6 +56,51 @@ export default function Toolbar({ onAddChild, onAddSibling, onDelete, onToggleNo
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1.5" y="1.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 4h4M3.5 6h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         notes
       </button>
+
+      {/* Link style controls: shown when creating a link or editing one */}
+      {(isLinking || selectedLink) && (
+        <>
+          <div className={styles.sep} />
+          <button
+            className={`${styles.btn} ${styles.small}`}
+            onClick={() => {
+              if (selectedLink) onToggleLinkStyle();
+              else onSetLinkStyle(linkStyle === 'arrow' ? 'line' : 'arrow');
+            }}
+            title={selectedLink ? `Style: ${selectedLink.style}` : `Style: ${linkStyle}`}
+          >
+            {(selectedLink?.style ?? linkStyle) === 'arrow' ? (
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+                <path d="M1 5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M9 2l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+                <path d="M1 5h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+            )}
+          </button>
+          <button
+            className={`${styles.btn} ${styles.small}`}
+            onClick={() => {
+              if (selectedLink) onToggleLinkStroke();
+              else onSetLinkStroke(linkStroke === 'solid' ? 'dashed' : 'solid');
+            }}
+            title={selectedLink ? `Stroke: ${selectedLink.stroke}` : `Stroke: ${linkStroke}`}
+          >
+            {(selectedLink?.stroke ?? linkStroke) === 'solid' ? (
+              <svg width="14" height="4" viewBox="0 0 14 4" fill="none">
+                <path d="M1 2h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="14" height="4" viewBox="0 0 14 4" fill="none">
+                <path d="M1 2h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 2.5"/>
+              </svg>
+            )}
+          </button>
+        </>
+      )}
+
       <div className={styles.sep} />
       <button className={styles.btn} onClick={onLayout}>
         <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><rect x="1" y="1" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7" y="1" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7" y="6" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M4 2.5h1.5a1 1 0 011 1v3" stroke="currentColor" strokeWidth="1.2"/></svg>
