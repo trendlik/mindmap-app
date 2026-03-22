@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { colorForDepth, measureNode } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge } from '../store/useMindMapStore';
 import Toolbar from './Toolbar';
+import NotesPanel from './NotesPanel';
 import styles from './Canvas.module.css';
 
 interface CanvasProps {
@@ -38,6 +39,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editPos, setEditPos] = useState({ x: 0, y: 0, w: 0, h: 0 });
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const panRef = useRef<PanState | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -99,6 +101,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const target = e.target as SVGElement;
     if (target === svgRef.current || target.tagName === 'svg' || (target.tagName === 'g' && !(target as unknown as HTMLElement).dataset.nodeId)) {
       setSelectedId(null);
+      setNotesOpen(false);
       const { cx, cy } = getSVGXY(e);
       panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
     }
@@ -218,6 +221,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!map || !selectedId || Object.keys(map.nodes).length <= 1) return;
     onDeleteNode(map.id, selectedId, map.nodes, map.edges);
     setSelectedId(null);
+    setNotesOpen(false);
   }
 
   function handleLayout() {
@@ -305,6 +309,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                   >
                     {n.label}
                   </text>
+                  {n.notes && (
+                    <circle cx={w - 6} cy={6} r={3.5} fill="#1D9E75" />
+                  )}
                 </g>
               );
             })}
@@ -335,14 +342,25 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
       <Toolbar
         hasSelected={!!selectedId}
+        notesOpen={notesOpen}
         onAddChild={addChild}
         onAddSibling={addSibling}
         onDelete={deleteSelected}
+        onToggleNotes={() => setNotesOpen(v => !v)}
         onLayout={handleLayout}
         onFitView={fitView}
         onExportJson={() => onExportJson(map)}
         onExportImg={() => onExportImg(map)}
       />
+
+      {notesOpen && selectedId && map.nodes[selectedId] && (
+        <NotesPanel
+          nodeLabel={map.nodes[selectedId].label}
+          notes={map.nodes[selectedId].notes || ''}
+          onChange={(notes) => onUpdateNode(map.id, selectedId, { notes })}
+          onClose={() => setNotesOpen(false)}
+        />
+      )}
 
       <div className={styles.hint}>
         double-click to edit · drag to pan · scroll to zoom

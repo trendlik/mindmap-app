@@ -12,6 +12,7 @@ export interface MindMapNode {
   depth: number;
   w: number;
   h: number;
+  notes?: string;
 }
 
 export interface Edge {

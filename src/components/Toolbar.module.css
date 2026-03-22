@@ -39,6 +39,11 @@
   cursor: default;
 }
 
+.btn.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
 .btn.danger:hover:not(:disabled) {
   background: #fdecea;
   color: #c0392b;
