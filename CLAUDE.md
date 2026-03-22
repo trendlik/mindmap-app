@@ -16,8 +16,8 @@ No test runner or linter is configured.
 
 Two workflows in `.github/workflows/`:
 
-- **ci.yml** — Runs on PRs and pushes to `main`. Steps: type-check (`tsc --noEmit`) + production build.
-- **deploy.yml** — Runs on push to `main`. Builds, then deploys to Firebase Hosting (live channel) and deploys Firestore rules.
+- **ci.yml** — Runs on PRs and pushes to `master`. Steps: type-check (`tsc --noEmit`) + production build.
+- **deploy.yml** — Runs on push to `master`. Builds, then deploys to Firebase Hosting (live channel) and deploys Firestore rules.
 
 ### Required GitHub secrets
 
