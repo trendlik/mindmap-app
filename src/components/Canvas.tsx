@@ -724,7 +724,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           : 'double-click to edit · drag to pan · scroll to zoom'}
       </div>
       <div className={styles.zoom}>
-        {Math.round(scale * 100)}%
+        {Math.round(scale * 100)}% · {__COMMIT_HASH__}
       </div>
     </div>
   );
