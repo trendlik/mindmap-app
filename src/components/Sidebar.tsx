@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { User } from 'firebase/auth';
 import type { MindMap } from '../store/useMindMapStore';
 import styles from './Sidebar.module.css';
 
@@ -9,9 +10,11 @@ interface SidebarProps {
   onCreate: (name?: string) => void;
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
   onRename: (mapId: string, name: string) => void;
+  user: User | null;
+  onSignOut: () => void;
 }
 
-export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelete, onRename }: SidebarProps) {
+export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelete, onRename, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +99,19 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
       </nav>
 
       <div className={styles.footer}>
+        {user && (
+          <div className={styles.userRow}>
+            {user.photoURL && (
+              <img className={styles.avatar} src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+            )}
+            <span className={styles.userName}>{user.displayName || user.email}</span>
+            <button className={styles.signOutBtn} onClick={onSignOut} title="Sign out">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M4.5 10.5H2.5a1 1 0 01-1-1v-7a1 1 0 011-1h2M8 8.5l2.5-2.5L8 3.5M10.5 6H4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        )}
         <span className={styles.footerText}>{Object.keys(maps).length} map{Object.keys(maps).length !== 1 ? 's' : ''}</span>
       </div>
     </aside>

@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { subscribeToMaps, saveMapToFirestore, deleteMapFromFirestore, saveAllMapsToFirestore } from './firestoreSync';
 
 const STORAGE_KEY = 'mindmaps_v2';
 
@@ -28,7 +29,7 @@ export interface MindMap {
   scale: number;
 }
 
-type MapsRecord = Record<string, MindMap>;
+export type MapsRecord = Record<string, MindMap>;
 
 interface NodeColor {
   fill: string;
@@ -52,17 +53,24 @@ export function measureNode(label: string): { w: number; h: number } {
   return { w: Math.max(90, label.length * 8 + 36), h: 36 };
 }
 
-function loadState(): { maps: MapsRecord; counter: number } | null {
+function uid() {
+  return crypto.randomUUID();
+}
+
+function loadLocalState(): MapsRecord | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.maps || null;
+    }
   } catch (_e) { /* ignore */ }
   return null;
 }
 
-function saveState(maps: MapsRecord, counter: number): void {
+function saveLocalState(maps: MapsRecord): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maps, counter }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maps }));
   } catch (_e) { /* ignore */ }
 }
 
@@ -70,44 +78,102 @@ function makeRootNode(id: string, label: string): MindMapNode {
   return { id, label, x: 0, y: 0, parentId: null, depth: 0, w: 0, h: 36 };
 }
 
-function initialState(): { maps: MapsRecord; counter: number } {
-  const saved = loadState();
-  if (saved && Object.keys(saved.maps || {}).length > 0) {
-    return { maps: saved.maps, counter: saved.counter || 0 };
-  }
-  const rootId = 'n0';
-  const mapId = 'map0';
+function defaultMaps(): MapsRecord {
+  const rootId = uid();
+  const mapId = uid();
   return {
-    counter: 1,
-    maps: {
-      [mapId]: {
-        id: mapId,
-        name: 'my first map',
-        nodes: { [rootId]: makeRootNode(rootId, 'my first map') },
-        edges: [],
-        tx: 0, ty: 0, scale: 1,
-      },
+    [mapId]: {
+      id: mapId,
+      name: 'my first map',
+      nodes: { [rootId]: makeRootNode(rootId, 'my first map') },
+      edges: [],
+      tx: 0, ty: 0, scale: 1,
     },
   };
 }
 
-export function useMindMapStore() {
-  const init = initialState();
-  const [maps, setMaps] = useState<MapsRecord>(init.maps);
-  const [activeMapId, setActiveMapId] = useState(Object.keys(init.maps)[0]);
-  const counterRef = useRef(init.counter);
+export function useMindMapStore(userId: string | null) {
+  const [maps, setMaps] = useState<MapsRecord>(() => {
+    return loadLocalState() || defaultMaps();
+  });
+  const [activeMapId, setActiveMapId] = useState(() => Object.keys(loadLocalState() || defaultMaps())[0]);
   const viewRef = useRef<Record<string, { tx: number; ty: number; scale: number }>>({});
 
-  const nextId = (prefix: string) => `${prefix}${counterRef.current++}`;
+  // Track whether Firestore has loaded initial data
+  const firestoreLoadedRef = useRef(false);
+  // Track locally-originated writes to avoid echo from Firestore snapshot
+  const skipNextSnapshotRef = useRef(false);
+  // Debounce timers for Firestore writes
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const persist = useCallback((newMaps: MapsRecord) => {
-    saveState(newMaps, counterRef.current);
-  }, []);
+  // Firestore subscription
+  useEffect(() => {
+    if (!userId) {
+      firestoreLoadedRef.current = false;
+      return;
+    }
 
-  const update = useCallback((updater: (prev: MapsRecord) => MapsRecord) => {
+    const unsub = subscribeToMaps(userId, (remoteMaps) => {
+      if (skipNextSnapshotRef.current) {
+        skipNextSnapshotRef.current = false;
+        return;
+      }
+
+      if (!firestoreLoadedRef.current) {
+        firestoreLoadedRef.current = true;
+        const localMaps = loadLocalState();
+
+        if (Object.keys(remoteMaps).length === 0 && localMaps && Object.keys(localMaps).length > 0) {
+          // First sign-in: migrate localStorage maps to Firestore
+          saveAllMapsToFirestore(userId, localMaps);
+          // Keep local maps as-is
+          return;
+        }
+
+        if (Object.keys(remoteMaps).length > 0) {
+          // Use Firestore data as source of truth
+          setMaps(remoteMaps);
+          saveLocalState(remoteMaps);
+          setActiveMapId((prev) => {
+            if (remoteMaps[prev]) return prev;
+            return Object.keys(remoteMaps)[0];
+          });
+          return;
+        }
+      }
+
+      // Ongoing snapshot updates from other devices
+      if (Object.keys(remoteMaps).length > 0) {
+        setMaps(remoteMaps);
+        saveLocalState(remoteMaps);
+      }
+    });
+
+    return unsub;
+  }, [userId]);
+
+  const debouncedFirestoreSave = useCallback((map: MindMap) => {
+    if (!userId) return;
+    if (debounceTimers.current[map.id]) {
+      clearTimeout(debounceTimers.current[map.id]);
+    }
+    debounceTimers.current[map.id] = setTimeout(() => {
+      skipNextSnapshotRef.current = true;
+      saveMapToFirestore(userId, map);
+    }, 500);
+  }, [userId]);
+
+  const persist = useCallback((newMaps: MapsRecord, changedMapId?: string) => {
+    saveLocalState(newMaps);
+    if (changedMapId && newMaps[changedMapId]) {
+      debouncedFirestoreSave(newMaps[changedMapId]);
+    }
+  }, [debouncedFirestoreSave]);
+
+  const update = useCallback((updater: (prev: MapsRecord) => MapsRecord, changedMapId?: string) => {
     setMaps(prev => {
       const next = updater(prev);
-      persist(next);
+      persist(next, changedMapId);
       return next;
     });
   }, [persist]);
@@ -117,20 +183,17 @@ export function useMindMapStore() {
       const m = prev[mapId];
       if (!m) return prev;
       return { ...prev, [mapId]: updater(m) };
-    });
+    }, mapId);
   }, [update]);
 
   const saveView = useCallback((mapId: string, tx: number, ty: number, scale: number) => {
     viewRef.current[mapId] = { tx, ty, scale };
-    update(prev => ({
-      ...prev,
-      [mapId]: { ...prev[mapId], tx, ty, scale },
-    }));
-  }, [update]);
+    updateMap(mapId, m => ({ ...m, tx, ty, scale }));
+  }, [updateMap]);
 
   const createMap = useCallback((name?: string) => {
-    const mapId = nextId('map');
-    const rootId = nextId('n');
+    const mapId = uid();
+    const rootId = uid();
     const label = name || 'new map';
     const newMap: MindMap = {
       id: mapId,
@@ -139,23 +202,33 @@ export function useMindMapStore() {
       edges: [],
       tx: 0, ty: 0, scale: 1,
     };
-    update(prev => ({ ...prev, [mapId]: newMap }));
+    setMaps(prev => {
+      const next = { ...prev, [mapId]: newMap };
+      saveLocalState(next);
+      if (userId) {
+        saveMapToFirestore(userId, newMap);
+      }
+      return next;
+    });
     setActiveMapId(mapId);
     return mapId;
-  }, [update]);
+  }, [userId]);
 
   const deleteMap = useCallback((mapId: string, currentMaps: MapsRecord) => {
     const ids = Object.keys(currentMaps);
     if (ids.length <= 1) return;
     const next = { ...currentMaps };
     delete next[mapId];
-    persist(next);
+    saveLocalState(next);
+    if (userId) {
+      deleteMapFromFirestore(userId, mapId);
+    }
     setMaps(next);
     if (activeMapId === mapId) {
       const remaining = Object.keys(next);
       setActiveMapId(remaining[0]);
     }
-  }, [activeMapId, persist]);
+  }, [activeMapId, userId]);
 
   const renameMap = useCallback((mapId: string, name: string) => {
     updateMap(mapId, m => ({ ...m, name }));
@@ -166,7 +239,7 @@ export function useMindMapStore() {
   }, []);
 
   const addNode = useCallback((mapId: string, label: string, x: number, y: number, parentId: string | null, depth: number) => {
-    const id = nextId('n');
+    const id = uid();
     updateMap(mapId, m => ({
       ...m,
       nodes: { ...m.nodes, [id]: { id, label, x, y, parentId, depth: depth || 0, w: 0, h: 36 } },
