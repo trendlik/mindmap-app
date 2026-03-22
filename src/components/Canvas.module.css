@@ -13,6 +13,7 @@
   height: 100%;
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .svg.grabbing {
@@ -97,4 +98,22 @@
 .empty p {
   font-size: 13px;
   color: var(--text-tertiary);
+}
+
+@media (max-width: 640px) {
+  .hint {
+    bottom: 68px;
+    font-size: 10px;
+  }
+
+  .zoom {
+    bottom: 68px;
+  }
+
+  .linkingHint,
+  .reparentHint {
+    top: 14px;
+    font-size: 11px;
+    padding: 5px 12px;
+  }
 }

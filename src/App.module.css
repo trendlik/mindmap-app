@@ -3,4 +3,60 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  position: relative;
+}
+
+.menuBtn {
+  display: none;
+}
+
+.sidebarWrap {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.overlay {
+  display: none;
+}
+
+/* Mobile: sidebar becomes a slide-out drawer */
+@media (max-width: 640px) {
+  .menuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 40;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .sidebarWrap {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .sidebarWrap.sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(0, 0, 0, 0.3);
+  }
 }

@@ -60,3 +60,46 @@
   background: var(--border-soft);
   margin: 0 3px;
 }
+
+/* Mobile toolbar: scrollable, icon-only, bigger tap targets */
+@media (max-width: 640px) {
+  .toolbar {
+    top: auto;
+    bottom: 14px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    padding: 6px 8px;
+    border-radius: 14px;
+    max-width: 100%;
+    gap: 2px;
+  }
+
+  .btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px 8px;
+    justify-content: center;
+    font-size: 0;      /* hide text labels */
+    gap: 0;
+  }
+
+  .btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .btn.small {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px;
+  }
+
+  .sep {
+    height: 20px;
+    margin: 0 2px;
+  }
+}

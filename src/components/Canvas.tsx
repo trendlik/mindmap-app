@@ -34,6 +34,24 @@ interface DragState {
   moved: boolean;
 }
 
+interface PinchState {
+  d0: number;
+  scale0: number;
+  cx: number;
+  cy: number;
+}
+
+function touchDist(a: React.Touch, b: React.Touch) {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+function touchMid(a: React.Touch, b: React.Touch, rect: DOMRect) {
+  return {
+    cx: (a.clientX + b.clientX) / 2 - rect.left,
+    cy: (a.clientY + b.clientY) / 2 - rect.top,
+  };
+}
+
 export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onExportJson, onExportImg }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
@@ -59,6 +77,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   const panRef = useRef<PanState | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const pinchRef = useRef<PinchState | null>(null);
+  const lastTapRef = useRef<{ time: number; nodeId: string | null }>({ time: 0, nodeId: null });
+  const touchDragRef = useRef<DragState | null>(null);
   const viewRef = useRef({ tx, ty, scale });
   const editInputRef = useRef<HTMLInputElement>(null);
   const mapIdRef = useRef(map?.id);
@@ -114,6 +135,24 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function getSVGXY(e: MouseEvent | React.MouseEvent) {
     const r = svgRef.current!.getBoundingClientRect();
     return { cx: e.clientX - r.left, cy: e.clientY - r.top };
+  }
+
+  function getTouchXY(t: { clientX: number; clientY: number }) {
+    const r = svgRef.current!.getBoundingClientRect();
+    return { cx: t.clientX - r.left, cy: t.clientY - r.top };
+  }
+
+  function findNodeAtPoint(cx: number, cy: number): string | null {
+    const w = toWorld(cx, cy);
+    const nodes = map ? Object.values(map.nodes) : [];
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i];
+      const m = measureNode(n.label);
+      if (w.x >= n.x - m.w / 2 && w.x <= n.x + m.w / 2 && w.y >= n.y - m.h / 2 && w.y <= n.y + m.h / 2) {
+        return n.id;
+      }
+    }
+    return null;
   }
 
   function onSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
@@ -221,6 +260,138 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
     setTx(ntx); setTy(nty); setScale(ns);
     onSaveView(map!.id, ntx, nty, ns);
+  }
+
+  function onTouchStart(e: React.TouchEvent<SVGSVGElement>) {
+    if (!svgRef.current) return;
+    const touches = e.touches;
+
+    if (touches.length === 2) {
+      // Pinch-to-zoom start
+      touchDragRef.current = null;
+      panRef.current = null;
+      const rect = svgRef.current.getBoundingClientRect();
+      pinchRef.current = {
+        d0: touchDist(touches[0], touches[1]),
+        scale0: viewRef.current.scale,
+        ...touchMid(touches[0], touches[1], rect),
+      };
+      return;
+    }
+
+    if (touches.length === 1) {
+      const { cx, cy } = getTouchXY(touches[0]);
+      const nodeId = findNodeAtPoint(cx, cy);
+
+      if (nodeId) {
+        // Handle linking / reparenting modes
+        if (linkingFrom) {
+          if (nodeId !== linkingFrom) {
+            onAddLink(map!.id, linkingFrom, nodeId, linkStyle, linkStroke);
+          }
+          setLinkingFrom(null);
+          return;
+        }
+        if (reparentingFrom) {
+          if (nodeId !== reparentingFrom) {
+            onReparentNode(map!.id, reparentingFrom, nodeId, map!.nodes);
+          }
+          setReparentingFrom(null);
+          return;
+        }
+
+        // Tap on node — start drag
+        setSelectedId(nodeId);
+        setSelectedLinkId(null);
+        const w = toWorld(cx, cy);
+        const n = map!.nodes[nodeId];
+        touchDragRef.current = { id: nodeId, ox: w.x - n.x, oy: w.y - n.y, moved: false };
+
+        // Double-tap detection
+        const now = Date.now();
+        if (lastTapRef.current.nodeId === nodeId && now - lastTapRef.current.time < 350) {
+          // Double-tap → edit
+          touchDragRef.current = null;
+          const { w: nw, h: nh } = measureNode(n.label);
+          const sx = (n.x - nw / 2) * scale + tx;
+          const sy = (n.y - nh / 2) * scale + ty;
+          setEditingId(nodeId);
+          setEditValue(n.label);
+          setEditPos({ x: sx, y: sy, w: nw * scale, h: nh * scale });
+          setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select(); }, 10);
+          lastTapRef.current = { time: 0, nodeId: null };
+          return;
+        }
+        lastTapRef.current = { time: now, nodeId };
+      } else {
+        // Tap on background
+        if (linkingFrom) { setLinkingFrom(null); return; }
+        if (reparentingFrom) { setReparentingFrom(null); return; }
+        setSelectedId(null);
+        setSelectedLinkId(null);
+        setNotesOpen(false);
+        panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
+        lastTapRef.current = { time: 0, nodeId: null };
+      }
+    }
+  }
+
+  function onTouchMove(e: React.TouchEvent<SVGSVGElement>) {
+    if (!svgRef.current) return;
+    const touches = e.touches;
+
+    if (touches.length === 2 && pinchRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      const d = touchDist(touches[0], touches[1]);
+      const mid = touchMid(touches[0], touches[1], rect);
+      const ns = Math.min(3, Math.max(0.15, pinchRef.current.scale0 * (d / pinchRef.current.d0)));
+      const ntx = mid.cx - (pinchRef.current.cx - viewRef.current.tx) * (ns / viewRef.current.scale);
+      const nty = mid.cy - (pinchRef.current.cy - viewRef.current.ty) * (ns / viewRef.current.scale);
+      setTx(ntx); setTy(nty); setScale(ns);
+      return;
+    }
+
+    if (touches.length === 1) {
+      const { cx, cy } = getTouchXY(touches[0]);
+
+      if (touchDragRef.current && map) {
+        const w = toWorld(cx, cy);
+        touchDragRef.current.moved = true;
+        onUpdateNode(map.id, touchDragRef.current.id, {
+          x: w.x - touchDragRef.current.ox,
+          y: w.y - touchDragRef.current.oy,
+        });
+        return;
+      }
+
+      if ((linkingFrom || reparentingFrom)) {
+        setMouseWorld(toWorld(cx, cy));
+        return;
+      }
+
+      if (panRef.current) {
+        const ntx = panRef.current.tx + (cx - panRef.current.cx);
+        const nty = panRef.current.ty + (cy - panRef.current.cy);
+        setTx(ntx); setTy(nty);
+      }
+    }
+  }
+
+  function onTouchEnd(e: React.TouchEvent<SVGSVGElement>) {
+    if (e.touches.length === 0) {
+      if (touchDragRef.current?.moved && map) {
+        onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
+      }
+      if (panRef.current && map) {
+        onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
+      }
+      if (pinchRef.current && map) {
+        onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
+      }
+      touchDragRef.current = null;
+      panRef.current = null;
+      pinchRef.current = null;
+    }
   }
 
   function startEdit(e: React.MouseEvent, nodeId: string) {
@@ -339,6 +510,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         className={`${styles.svg} ${panRef.current ? styles.grabbing : ''} ${(linkingFrom || reparentingFrom) ? styles.linking : ''}`}
         onMouseDown={onSvgMouseDown}
         onWheel={onWheel}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
         <defs>
           <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -545,7 +719,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       )}
 
       <div className={styles.hint}>
-        double-click to edit · drag to pan · scroll to zoom
+        {'ontouchstart' in window
+          ? 'double-tap to edit · drag to pan · pinch to zoom'
+          : 'double-click to edit · drag to pan · scroll to zoom'}
       </div>
       <div className={styles.zoom}>
         {Math.round(scale * 100)}%
