@@ -9,7 +9,7 @@ import styles from './App.module.css';
 
 export default function App() {
   const { user, signOut } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const {
     maps,
     activeMapId,
@@ -38,13 +38,16 @@ export default function App() {
   return (
     <AuthGate>
       <div className={styles.app}>
-        <button className={styles.menuBtn} onClick={() => setSidebarOpen(v => !v)} aria-label="Toggle sidebar">
+        <button className={`${styles.menuBtn} ${sidebarOpen ? styles.menuBtnShifted : ''}`} onClick={() => setSidebarOpen(v => !v)} aria-label="Toggle sidebar">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            {sidebarOpen
+              ? <path d="M5 4.5L13 9L5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              : <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            }
           </svg>
         </button>
         {sidebarOpen && <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />}
-        <div className={`${styles.sidebarWrap} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
+        <div className={`${styles.sidebarWrap} ${!sidebarOpen ? styles.sidebarCollapsed : ''}`}>
           <Sidebar
             maps={maps}
             activeMapId={activeMapId}
