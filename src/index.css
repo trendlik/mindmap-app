@@ -1,0 +1,74 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  --bg-app:      #f5f3ef;
+  --bg-surface:  #ffffff;
+  --bg-sidebar:  #eceae5;
+  --bg-hover:    #e4e2dd;
+  --bg-active:   #ffffff;
+
+  --text-primary:   #1a1917;
+  --text-secondary: #6b6860;
+  --text-tertiary:  #a09d98;
+
+  --border-soft:    rgba(0,0,0,0.08);
+  --border-medium:  rgba(0,0,0,0.13);
+  --border-strong:  rgba(0,0,0,0.2);
+
+  --accent:         #1a6b4a;
+  --accent-light:   #e1f5ee;
+  --accent-border:  #0f6e56;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --node-0-fill:   #E1F5EE;
+  --node-0-stroke: #0F6E56;
+  --node-0-text:   #085041;
+
+  --node-1-fill:   #E6F1FB;
+  --node-1-stroke: #185FA5;
+  --node-1-text:   #0C447C;
+
+  --node-2-fill:   #EEEDFE;
+  --node-2-stroke: #534AB7;
+  --node-2-text:   #3C3489;
+
+  --node-3-fill:   #FAECE7;
+  --node-3-stroke: #993C1D;
+  --node-3-text:   #712B13;
+
+  --node-4-fill:   #FAEEDA;
+  --node-4-stroke: #854F0B;
+  --node-4-text:   #633806;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+input {
+  font-family: var(--font-sans);
+}

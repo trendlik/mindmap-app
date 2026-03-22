@@ -1,0 +1,141 @@
+.sidebar {
+  width: 210px;
+  min-width: 210px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  padding: 16px 14px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.newBtn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+
+.newBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.1s;
+  min-width: 0;
+}
+
+.item:hover {
+  background: var(--bg-hover);
+}
+
+.item.active {
+  background: var(--bg-active);
+  border-color: var(--border-medium);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+
+.item.active .dot {
+  background: var(--accent);
+}
+
+.name {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.renameInput {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.delBtn {
+  opacity: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.1s, color 0.1s, background 0.1s;
+}
+
+.item:hover .delBtn {
+  opacity: 1;
+}
+
+.delBtn:hover {
+  color: #c0392b;
+  background: #fdecea;
+}
+
+.footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.footerText {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
