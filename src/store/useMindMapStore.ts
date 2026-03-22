@@ -317,6 +317,43 @@ export function useMindMapStore(userId: string | null) {
     });
   }, [updateMap]);
 
+  const reparentNode = useCallback((mapId: string, nodeId: string, newParentId: string, allNodes: Record<string, MindMapNode>) => {
+    const node = allNodes[nodeId];
+    if (!node || !node.parentId || nodeId === newParentId) return;
+
+    // Prevent moving to a descendant (would create cycle)
+    const descendants = new Set<string>();
+    function collectDesc(id: string) {
+      Object.values(allNodes).filter(n => n.parentId === id).forEach(c => {
+        descendants.add(c.id);
+        collectDesc(c.id);
+      });
+    }
+    collectDesc(nodeId);
+    if (descendants.has(newParentId)) return;
+
+    const newDepth = allNodes[newParentId].depth + 1;
+    const depthDelta = newDepth - node.depth;
+
+    updateMap(mapId, m => {
+      const nodes = { ...m.nodes };
+      // Update the moved node
+      nodes[nodeId] = { ...nodes[nodeId], parentId: newParentId, depth: newDepth };
+      // Update all descendant depths
+      function updateDepths(id: string) {
+        Object.values(nodes).filter(n => n.parentId === id).forEach(c => {
+          nodes[c.id] = { ...nodes[c.id], depth: c.depth + depthDelta };
+          updateDepths(c.id);
+        });
+      }
+      updateDepths(nodeId);
+      // Update edges: remove old parent edge, add new one
+      const edges = m.edges.filter(e => !(e.to === nodeId));
+      edges.push({ from: newParentId, to: nodeId });
+      return { ...m, nodes, edges };
+    });
+  }, [updateMap]);
+
   const addLink = useCallback((mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke']) => {
     const id = uid();
     updateMap(mapId, m => ({
@@ -351,6 +388,7 @@ export function useMindMapStore(userId: string | null) {
     addNode,
     updateNode,
     deleteNode,
+    reparentNode,
     addLink,
     updateLink,
     deleteLink,

@@ -19,6 +19,7 @@ export default function App() {
     addNode,
     updateNode,
     deleteNode,
+    reparentNode,
     addLink,
     updateLink,
     deleteLink,
@@ -47,6 +48,7 @@ export default function App() {
           onAddNode={addNode}
           onUpdateNode={updateNode}
           onDeleteNode={deleteNode}
+          onReparentNode={reparentNode}
           onAddLink={addLink}
           onUpdateLink={updateLink}
           onDeleteLink={deleteLink}

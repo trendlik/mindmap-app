@@ -71,6 +71,21 @@
   z-index: 20;
 }
 
+.reparentHint {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #a84300;
+  background: #fef3e2;
+  padding: 6px 14px;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 20;
+}
+
 .empty {
   flex: 1;
   display: flex;

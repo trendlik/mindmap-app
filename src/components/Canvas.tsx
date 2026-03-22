@@ -11,6 +11,7 @@ interface CanvasProps {
   onAddNode: (mapId: string, label: string, x: number, y: number, parentId: string | null, depth: number) => string;
   onUpdateNode: (mapId: string, nodeId: string, changes: Partial<MindMapNode>) => void;
   onDeleteNode: (mapId: string, nodeId: string, nodes: Record<string, MindMapNode>, edges: Edge[]) => void;
+  onReparentNode: (mapId: string, nodeId: string, newParentId: string, nodes: Record<string, MindMapNode>) => void;
   onAddLink: (mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke']) => string;
   onUpdateLink: (mapId: string, linkId: string, changes: Partial<CustomLink>) => void;
   onDeleteLink: (mapId: string, linkId: string) => void;
@@ -33,7 +34,7 @@ interface DragState {
   moved: boolean;
 }
 
-export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onExportJson, onExportImg }: CanvasProps) {
+export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onExportJson, onExportImg }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
   const [ty, setTy] = useState(map?.ty ?? 0);
@@ -49,6 +50,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const [linkStyle, setLinkStyle] = useState<CustomLink['style']>('arrow');
   const [linkStroke, setLinkStroke] = useState<CustomLink['stroke']>('solid');
   const [mouseWorld, setMouseWorld] = useState({ x: 0, y: 0 });
+
+  // Reparent mode
+  const [reparentingFrom, setReparentingFrom] = useState<string | null>(null);
 
   // Link selection
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
@@ -68,6 +72,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setSelectedId(null);
       setEditingId(null);
       setLinkingFrom(null);
+      setReparentingFrom(null);
       setSelectedLinkId(null);
     }
   }, [map?.id]);
@@ -114,10 +119,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function onSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
     const target = e.target as SVGElement;
     if (target === svgRef.current || target.tagName === 'svg' || (target.tagName === 'g' && !(target as unknown as HTMLElement).dataset.nodeId)) {
-      if (linkingFrom) {
-        setLinkingFrom(null);
-        return;
-      }
+      if (linkingFrom) { setLinkingFrom(null); return; }
+      if (reparentingFrom) { setReparentingFrom(null); return; }
       setSelectedId(null);
       setSelectedLinkId(null);
       setNotesOpen(false);
@@ -128,6 +131,14 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   function onNodeMouseDown(e: React.MouseEvent, nodeId: string) {
     e.stopPropagation();
+
+    if (reparentingFrom) {
+      if (nodeId !== reparentingFrom) {
+        onReparentNode(map!.id, reparentingFrom, nodeId, map!.nodes);
+      }
+      setReparentingFrom(null);
+      return;
+    }
 
     if (linkingFrom) {
       if (nodeId !== linkingFrom) {
@@ -155,7 +166,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
-      if (linkingFrom && svgRef.current) {
+      if ((linkingFrom || reparentingFrom) && svgRef.current) {
         const { cx, cy } = getSVGXY(e);
         setMouseWorld(toWorld(cx, cy));
         return;
@@ -186,8 +197,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       panRef.current = null;
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && linkingFrom) {
-        setLinkingFrom(null);
+      if (e.key === 'Escape') {
+        if (linkingFrom) setLinkingFrom(null);
+        if (reparentingFrom) setReparentingFrom(null);
       }
     }
     window.addEventListener('mousemove', onMouseMove);
@@ -198,7 +210,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [map, onUpdateNode, onSaveView, linkingFrom]);
+  }, [map, onUpdateNode, onSaveView, linkingFrom, reparentingFrom]);
 
   function onWheel(e: React.WheelEvent) {
     e.preventDefault();
@@ -290,6 +302,16 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function startLinking() {
     if (!selectedId) return;
     setLinkingFrom(selectedId);
+    setReparentingFrom(null);
+    setSelectedLinkId(null);
+  }
+
+  function startReparenting() {
+    if (!selectedId || !map) return;
+    const node = map.nodes[selectedId];
+    if (!node?.parentId) return;
+    setReparentingFrom(selectedId);
+    setLinkingFrom(null);
     setSelectedLinkId(null);
   }
 
@@ -308,12 +330,13 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const edges = map.edges;
   const links = map.links || [];
   const linkingSource = linkingFrom ? map.nodes[linkingFrom] : null;
+  const reparentingSource = reparentingFrom ? map.nodes[reparentingFrom] : null;
 
   return (
     <div className={styles.canvasWrap}>
       <svg
         ref={svgRef}
-        className={`${styles.svg} ${panRef.current ? styles.grabbing : ''} ${linkingFrom ? styles.linking : ''}`}
+        className={`${styles.svg} ${panRef.current ? styles.grabbing : ''} ${(linkingFrom || reparentingFrom) ? styles.linking : ''}`}
         onMouseDown={onSvgMouseDown}
         onWheel={onWheel}
       >
@@ -392,6 +415,18 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               style={{ pointerEvents: 'none' }}
             />
           )}
+          {/* Reparent preview line */}
+          {reparentingSource && (
+            <line
+              x1={reparentingSource.x} y1={reparentingSource.y}
+              x2={mouseWorld.x} y2={mouseWorld.y}
+              stroke="#E67E22"
+              strokeWidth="1.5"
+              strokeDasharray="6 3"
+              strokeOpacity="0.7"
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
           {/* Nodes */}
           <g>
             {nodes.map(n => {
@@ -403,7 +438,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                   key={n.id}
                   data-node-id={n.id}
                   transform={`translate(${n.x - w / 2},${n.y - h / 2})`}
-                  style={{ cursor: linkingFrom ? 'crosshair' : 'pointer' }}
+                  style={{ cursor: (linkingFrom || reparentingFrom) ? 'crosshair' : 'pointer' }}
                   onMouseDown={e => onNodeMouseDown(e, n.id)}
                   onDoubleClick={e => startEdit(e, n.id)}
                 >
@@ -463,12 +498,15 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         hasSelected={!!selectedId}
         notesOpen={notesOpen}
         isLinking={!!linkingFrom}
+        isReparenting={!!reparentingFrom}
+        canReparent={!!selectedId && !!map.nodes[selectedId]?.parentId}
         selectedLink={selectedLink}
         onAddChild={addChild}
         onAddSibling={addSibling}
         onDelete={deleteSelected}
         onToggleNotes={() => setNotesOpen(v => !v)}
         onStartLink={startLinking}
+        onStartReparent={startReparenting}
         onToggleLinkStyle={() => {
           if (selectedLink) onUpdateLink(map.id, selectedLink.id, { style: selectedLink.style === 'arrow' ? 'line' : 'arrow' });
         }}
@@ -497,6 +535,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       {linkingFrom && (
         <div className={styles.linkingHint}>
           click a target node to create link · Esc to cancel
+        </div>
+      )}
+
+      {reparentingFrom && (
+        <div className={styles.reparentHint}>
+          click a new parent node · Esc to cancel
         </div>
       )}
 

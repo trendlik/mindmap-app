@@ -7,6 +7,7 @@ interface ToolbarProps {
   onDelete: () => void;
   onToggleNotes: () => void;
   onStartLink: () => void;
+  onStartReparent: () => void;
   onToggleLinkStyle: () => void;
   onToggleLinkStroke: () => void;
   onSetLinkStyle: (s: CustomLink['style']) => void;
@@ -18,6 +19,8 @@ interface ToolbarProps {
   hasSelected: boolean;
   notesOpen: boolean;
   isLinking: boolean;
+  isReparenting: boolean;
+  canReparent: boolean;
   selectedLink: CustomLink | null;
   linkStyle: CustomLink['style'];
   linkStroke: CustomLink['stroke'];
@@ -25,10 +28,10 @@ interface ToolbarProps {
 
 export default function Toolbar(props: ToolbarProps) {
   const {
-    onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink,
+    onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink, onStartReparent,
     onToggleLinkStyle, onToggleLinkStroke, onSetLinkStyle, onSetLinkStroke,
     onLayout, onFitView, onExportJson, onExportImg,
-    hasSelected, notesOpen, isLinking, selectedLink, linkStyle, linkStroke,
+    hasSelected, notesOpen, isLinking, isReparenting, canReparent, selectedLink, linkStyle, linkStroke,
   } = props;
 
   return (
@@ -47,6 +50,13 @@ export default function Toolbar(props: ToolbarProps) {
           <path d="M6.5 2H9V4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         link
+      </button>
+      <button className={`${styles.btn} ${isReparenting ? styles.active : ''}`} onClick={onStartReparent} disabled={!canReparent && !isReparenting}>
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <path d="M5.5 1v7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M3 6l2.5 2.5L8 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        move
       </button>
       <button className={`${styles.btn} ${styles.danger}`} onClick={onDelete} disabled={!hasSelected && !selectedLink}>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
