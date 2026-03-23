@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useMindMapStore } from './store/useMindMapStore';
 import AuthGate from './components/AuthGate';
@@ -33,6 +33,34 @@ export default function App() {
   } = useMindMapStore(user?.uid ?? null);
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
+
+  // Sync URL hash ↔ active map
+  useEffect(() => {
+    const hashId = location.hash.slice(1);
+    if (hashId && maps[hashId] && hashId !== activeMapId) {
+      switchMap(hashId);
+    }
+  }, [maps]);
+
+  useEffect(() => {
+    if (activeMapId) {
+      const current = location.hash.slice(1);
+      if (current !== activeMapId) {
+        history.pushState(null, '', '#' + activeMapId);
+      }
+    }
+  }, [activeMapId]);
+
+  useEffect(() => {
+    function onHashChange() {
+      const hashId = location.hash.slice(1);
+      if (hashId && maps[hashId]) {
+        switchMap(hashId);
+      }
+    }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [maps, switchMap]);
 
   const handleSelectMap = useCallback((mapId: string) => {
     switchMap(mapId);
