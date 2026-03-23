@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Lightbulb glass -->
+  <path d="M32 4 C20 4 12 13 12 24 C12 31 16 36 20 40 L20 46 L44 46 L44 40 C48 36 52 31 52 24 C52 13 44 4 32 4Z" fill="none" stroke="#1D9E75" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Bulb base -->
+  <rect x="22" y="48" width="20" height="3" rx="1" fill="#1D9E75" opacity=".6"/>
+  <rect x="24" y="53" width="16" height="3" rx="1" fill="#1D9E75" opacity=".5"/>
+  <path d="M28 58 Q32 62 36 58" stroke="#1D9E75" stroke-width="2" fill="none" stroke-linecap="round" opacity=".4"/>
+  <!-- Mind-map nodes inside bulb -->
+  <circle cx="32" cy="18" r="4" fill="#1D9E75"/>
+  <circle cx="23" cy="27" r="3" fill="#1D9E75" opacity=".8"/>
+  <circle cx="41" cy="27" r="3" fill="#1D9E75" opacity=".8"/>
+  <circle cx="27" cy="37" r="2.5" fill="#1D9E75" opacity=".65"/>
+  <circle cx="37" cy="37" r="2.5" fill="#1D9E75" opacity=".65"/>
+  <!-- Connections -->
+  <line x1="32" y1="18" x2="23" y2="27" stroke="#1D9E75" stroke-width="1.5" opacity=".4"/>
+  <line x1="32" y1="18" x2="41" y2="27" stroke="#1D9E75" stroke-width="1.5" opacity=".4"/>
+  <line x1="23" y1="27" x2="27" y2="37" stroke="#1D9E75" stroke-width="1.5" opacity=".4"/>
+  <line x1="41" y1="27" x2="37" y2="37" stroke="#1D9E75" stroke-width="1.5" opacity=".4"/>
+</svg>

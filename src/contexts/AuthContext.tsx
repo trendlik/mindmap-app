@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
 interface AuthState {
@@ -32,7 +32,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function signIn() {
-    await signInWithPopup(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e: unknown) {
+      const code = (e as { code?: string }).code;
+      // Popup blocked or closed — fall back to redirect
+      if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        throw e;
+      }
+    }
   }
 
   async function signOut() {
