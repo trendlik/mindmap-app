@@ -248,7 +248,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (linkingFrom) setLinkingFrom(null);
         if (reparentingFrom) setReparentingFrom(null);
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current) {
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current && tag !== 'input' && tag !== 'textarea') {
         deleteSelectedRef.current();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
@@ -484,11 +485,14 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function deleteSelected() {
     if (!map) return;
     if (selectedLinkId) {
+      if (!confirm('Delete this link?')) return;
       onDeleteLink(map.id, selectedLinkId);
       setSelectedLinkId(null);
       return;
     }
     if (!selectedId || Object.keys(map.nodes).length <= 1) return;
+    const node = map.nodes[selectedId];
+    if (!confirm(`Delete "${node.label}"?`)) return;
     onDeleteNode(map.id, selectedId, map.nodes, map.edges);
     setSelectedId(null);
     if (notesNodeId === selectedId) {
