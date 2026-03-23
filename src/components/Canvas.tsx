@@ -36,6 +36,17 @@ interface DragState {
   ox: number;
   oy: number;
   moved: boolean;
+  /** Offsets for each node in a group drag */
+  group?: { id: string; ox: number; oy: number }[];
+}
+
+interface MarqueeState {
+  /** World coordinates of the starting corner */
+  x0: number;
+  y0: number;
+  /** Current world coordinates */
+  x1: number;
+  y1: number;
 }
 
 interface PinchState {
@@ -77,6 +88,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   // Reparent mode
   const [reparentingFrom, setReparentingFrom] = useState<string | null>(null);
 
+  // Multi-selection (desktop only)
+  const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
+  const marqueeRef = useRef<MarqueeState | null>(null);
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null);
+
   // Link selection
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
@@ -91,6 +107,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const editingIdRef = useRef(editingId);
   const undoRef = useRef(onUndo);
   const redoRef = useRef(onRedo);
+  const multiSelectedRef = useRef(multiSelected);
   const mapIdRef = useRef(map?.id);
 
   useEffect(() => {
@@ -104,6 +121,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setLinkingFrom(null);
       setReparentingFrom(null);
       setSelectedLinkId(null);
+      setMultiSelected(new Set());
     }
   }, [map?.id]);
 
@@ -169,9 +187,17 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (target === svgRef.current || target.tagName === 'svg' || (target.tagName === 'g' && !(target as unknown as HTMLElement).dataset.nodeId)) {
       if (linkingFrom) { setLinkingFrom(null); return; }
       if (reparentingFrom) { setReparentingFrom(null); return; }
+      const { cx, cy } = getSVGXY(e);
+      if (e.shiftKey) {
+        // Start marquee selection
+        const w = toWorld(cx, cy);
+        marqueeRef.current = { x0: w.x, y0: w.y, x1: w.x, y1: w.y };
+        setMarquee(marqueeRef.current);
+        return;
+      }
       setSelectedId(null);
       setSelectedLinkId(null);
-      const { cx, cy } = getSVGXY(e);
+      setMultiSelected(new Set());
       panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
     }
   }
@@ -195,12 +221,43 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       return;
     }
 
-    setSelectedId(nodeId);
-    setSelectedLinkId(null);
-    if (notesOpen) setNotesNodeId(nodeId);
     const { cx, cy } = getSVGXY(e);
     const w = toWorld(cx, cy);
     const n = map!.nodes[nodeId];
+
+    if (e.shiftKey) {
+      // Toggle node in multi-selection
+      setMultiSelected(prev => {
+        const next = new Set(prev);
+        // If there's a single selectedId, bring it into the multi-set first
+        if (selectedId && !next.has(selectedId)) next.add(selectedId);
+        if (next.has(nodeId)) next.delete(nodeId);
+        else next.add(nodeId);
+        return next;
+      });
+      setSelectedId(nodeId);
+      setSelectedLinkId(null);
+      return;
+    }
+
+    // If clicking a node that's part of multi-selection, start group drag
+    if (multiSelected.has(nodeId) && multiSelected.size > 1) {
+      const group = Array.from(multiSelected).map(id => {
+        const nd = map!.nodes[id];
+        return { id, ox: w.x - nd.x, oy: w.y - nd.y };
+      });
+      dragRef.current = { id: nodeId, ox: w.x - n.x, oy: w.y - n.y, moved: false, group };
+      setSelectedId(nodeId);
+      setSelectedLinkId(null);
+      if (notesOpen) setNotesNodeId(nodeId);
+      return;
+    }
+
+    // Normal single-select
+    setSelectedId(nodeId);
+    setSelectedLinkId(null);
+    setMultiSelected(new Set());
+    if (notesOpen) setNotesNodeId(nodeId);
     dragRef.current = { id: nodeId, ox: w.x - n.x, oy: w.y - n.y, moved: false };
   }
 
@@ -218,14 +275,31 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         setMouseWorld(toWorld(cx, cy));
         return;
       }
+      if (marqueeRef.current && svgRef.current) {
+        const { cx, cy } = getSVGXY(e);
+        const w = toWorld(cx, cy);
+        marqueeRef.current = { ...marqueeRef.current, x1: w.x, y1: w.y };
+        setMarquee({ ...marqueeRef.current });
+        return;
+      }
       if (dragRef.current && map) {
         const { cx, cy } = getSVGXY(e);
         const w = toWorld(cx, cy);
         dragRef.current.moved = true;
-        onUpdateNode(map.id, dragRef.current.id, {
-          x: w.x - dragRef.current.ox,
-          y: w.y - dragRef.current.oy,
-        });
+        if (dragRef.current.group) {
+          // Group drag — move all selected nodes
+          for (const g of dragRef.current.group) {
+            onUpdateNode(map.id, g.id, {
+              x: w.x - g.ox,
+              y: w.y - g.oy,
+            });
+          }
+        } else {
+          onUpdateNode(map.id, dragRef.current.id, {
+            x: w.x - dragRef.current.ox,
+            y: w.y - dragRef.current.oy,
+          });
+        }
       } else if (panRef.current) {
         const { cx, cy } = getSVGXY(e);
         const ntx = panRef.current.tx + (cx - panRef.current.cx);
@@ -234,6 +308,28 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       }
     }
     function onMouseUp() {
+      if (marqueeRef.current && map) {
+        // Select all nodes inside the marquee rectangle
+        const m = marqueeRef.current;
+        const minX = Math.min(m.x0, m.x1);
+        const maxX = Math.max(m.x0, m.x1);
+        const minY = Math.min(m.y0, m.y1);
+        const maxY = Math.max(m.y0, m.y1);
+        const hits = new Set<string>();
+        for (const n of Object.values(map.nodes)) {
+          if (n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY) {
+            hits.add(n.id);
+          }
+        }
+        setMultiSelected(hits);
+        if (hits.size > 0) {
+          const first = Array.from(hits)[0];
+          setSelectedId(first);
+        }
+        marqueeRef.current = null;
+        setMarquee(null);
+        return;
+      }
       if (dragRef.current?.moved && map) {
         onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
       }
@@ -247,6 +343,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       if (e.key === 'Escape') {
         if (linkingFrom) setLinkingFrom(null);
         if (reparentingFrom) setReparentingFrom(null);
+        if (multiSelectedRef.current.size > 0) setMultiSelected(new Set());
       }
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current && tag !== 'input' && tag !== 'textarea') {
@@ -504,6 +601,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   editingIdRef.current = editingId;
   undoRef.current = onUndo;
   redoRef.current = onRedo;
+  multiSelectedRef.current = multiSelected;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
@@ -649,6 +747,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               const { w, h } = measureNode(n.label);
               const c = colorForDepth(n.depth);
               const isSel = n.id === selectedId;
+              const isMultiSel = multiSelected.has(n.id);
               return (
                 <g
                   key={n.id}
@@ -663,8 +762,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     height={h}
                     rx={n.depth === 0 ? 10 : 8}
                     fill={c.fill}
-                    stroke={isSel ? '#1D9E75' : c.stroke}
-                    strokeWidth={isSel ? 2 : 1}
+                    stroke={(isSel || isMultiSel) ? '#1D9E75' : c.stroke}
+                    strokeWidth={(isSel || isMultiSel) ? 2 : 1}
                   />
                   <text
                     x={w / 2}
@@ -686,6 +785,20 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               );
             })}
           </g>
+          {/* Marquee selection rectangle */}
+          {marquee && (
+            <rect
+              x={Math.min(marquee.x0, marquee.x1)}
+              y={Math.min(marquee.y0, marquee.y1)}
+              width={Math.abs(marquee.x1 - marquee.x0)}
+              height={Math.abs(marquee.y1 - marquee.y0)}
+              fill="rgba(29,158,117,0.08)"
+              stroke="#1D9E75"
+              strokeWidth={1 / scale}
+              strokeDasharray={`${4 / scale} ${3 / scale}`}
+              style={{ pointerEvents: 'none' }}
+            />
+          )}
         </g>
       </svg>
 
