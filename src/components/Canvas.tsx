@@ -347,7 +347,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (multiSelectedRef.current.size > 0) setMultiSelected(new Set());
       }
       const tag = (document.activeElement?.tagName || '').toLowerCase();
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current && tag !== 'input' && tag !== 'textarea') {
+      const isEditable = tag === 'input' || tag === 'textarea' || (document.activeElement as HTMLElement)?.isContentEditable;
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current && !isEditable) {
         deleteSelectedRef.current();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
