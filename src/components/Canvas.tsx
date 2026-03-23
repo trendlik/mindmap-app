@@ -778,8 +778,14 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                   >
                     {n.label}
                   </text>
+                  {n.link && (
+                    <g transform={`translate(${w - 6},${6})`} style={{ cursor: 'pointer' }} onMouseDown={e => { e.stopPropagation(); if (n.link!.startsWith('#')) { location.hash = n.link!; } else { window.open(n.link, '_blank', 'noopener'); } }}>
+                      <circle r={5.5} fill="#1D9E75" opacity=".15" />
+                      <path d="M-2.5 0.5l1.5-1.5M-1 2l3-3M1.5 3l1.5-1.5" stroke="#1D9E75" strokeWidth="1" strokeLinecap="round" />
+                    </g>
+                  )}
                   {n.notes && (
-                    <circle cx={w - 6} cy={6} r={3.5} fill="#1D9E75" />
+                    <circle cx={w - (n.link ? 18 : 6)} cy={6} r={3.5} fill="#1D9E75" />
                   )}
                 </g>
               );
@@ -865,7 +871,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         <NotesPanel
           nodeLabel={map.nodes[notesNodeId].label}
           notes={map.nodes[notesNodeId].notes || ''}
+          link={map.nodes[notesNodeId].link || ''}
           onChange={(notes) => onUpdateNode(map.id, notesNodeId, { notes })}
+          onChangeLink={(link) => onUpdateNode(map.id, notesNodeId, { link })}
           onClose={() => setNotesOpen(false)}
         />
       )}

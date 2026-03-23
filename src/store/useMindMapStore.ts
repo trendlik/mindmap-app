@@ -13,6 +13,7 @@ export interface MindMapNode {
   w: number;
   h: number;
   notes?: string;
+  link?: string;
 }
 
 export interface Edge {
