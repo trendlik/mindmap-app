@@ -12,6 +12,9 @@ interface ToolbarProps {
   onToggleLinkStroke: () => void;
   onSetLinkStyle: (s: CustomLink['style']) => void;
   onSetLinkStroke: (s: CustomLink['stroke']) => void;
+  onToggleCollapse: () => void;
+  canCollapse: boolean;
+  isCollapsed: boolean;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -34,6 +37,7 @@ export default function Toolbar(props: ToolbarProps) {
   const {
     onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink, onStartReparent,
     onToggleLinkStyle, onToggleLinkStroke, onSetLinkStyle, onSetLinkStroke,
+    onToggleCollapse, canCollapse, isCollapsed,
     onUndo, onRedo, canUndo, canRedo,
     onLayout, onFitView, onExportJson, onExportImg,
     hasSelected, notesOpen, isLinking, isReparenting, canReparent, selectedLink, linkStyle, linkStroke,
@@ -70,6 +74,18 @@ export default function Toolbar(props: ToolbarProps) {
       <button className={`${styles.btn} ${notesOpen ? styles.active : ''}`} onClick={onToggleNotes} disabled={!hasSelected}>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1.5" y="1.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 4h4M3.5 6h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         notes
+      </button>
+      <button className={styles.btn} onClick={onToggleCollapse} disabled={!canCollapse} title={isCollapsed ? 'Expand children' : 'Collapse children'}>
+        {isCollapsed ? (
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M3 4.5l2.5 2.5L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ) : (
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M3 6.5l2.5-2.5L8 6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+        {isCollapsed ? 'expand' : 'collapse'}
       </button>
 
       {/* Link style controls: shown when creating a link or editing one */}

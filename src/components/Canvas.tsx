@@ -108,6 +108,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const undoRef = useRef(onUndo);
   const redoRef = useRef(onRedo);
   const multiSelectedRef = useRef(multiSelected);
+  const toggleCollapseRef = useRef<() => void>(() => {});
   const mapIdRef = useRef(map?.id);
 
   useEffect(() => {
@@ -579,6 +580,15 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     }, 60);
   }
 
+  function toggleCollapse() {
+    if (!map || !selectedId) return;
+    const node = map.nodes[selectedId];
+    // Only collapse nodes that have children
+    const hasChildren = Object.values(map.nodes).some(n => n.parentId === selectedId);
+    if (!hasChildren) return;
+    onUpdateNode(map.id, selectedId, { collapsed: !node.collapsed });
+  }
+
   function deleteSelected() {
     if (!map) return;
     if (selectedLinkId) {
@@ -602,6 +612,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   undoRef.current = onUndo;
   redoRef.current = onRedo;
   multiSelectedRef.current = multiSelected;
+  toggleCollapseRef.current = toggleCollapse;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
@@ -637,9 +648,26 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     );
   }
 
-  const nodes = Object.values(map.nodes);
-  const edges = map.edges;
-  const links = map.links || [];
+  // Compute set of node IDs hidden by collapsed ancestors
+  const hiddenIds = new Set<string>();
+  (function collectHidden() {
+    const allNodes = map.nodes;
+    function hideDescendants(parentId: string) {
+      for (const n of Object.values(allNodes)) {
+        if (n.parentId === parentId && !hiddenIds.has(n.id)) {
+          hiddenIds.add(n.id);
+          hideDescendants(n.id);
+        }
+      }
+    }
+    for (const n of Object.values(allNodes)) {
+      if (n.collapsed) hideDescendants(n.id);
+    }
+  })();
+
+  const nodes = Object.values(map.nodes).filter(n => !hiddenIds.has(n.id));
+  const edges = map.edges.filter(e => !hiddenIds.has(e.from) && !hiddenIds.has(e.to));
+  const links = (map.links || []).filter(l => !hiddenIds.has(l.from) && !hiddenIds.has(l.to));
   const linkingSource = linkingFrom ? map.nodes[linkingFrom] : null;
   const reparentingSource = reparentingFrom ? map.nodes[reparentingFrom] : null;
 
@@ -787,6 +815,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                   {n.notes && (
                     <circle cx={w - (n.link ? 18 : 6)} cy={6} r={3.5} fill="#1D9E75" />
                   )}
+                  {n.collapsed && (
+                    <g transform={`translate(${w / 2},${h + 4})`} style={{ cursor: 'pointer' }} onMouseDown={e => { e.stopPropagation(); setSelectedId(n.id); toggleCollapseRef.current(); }}>
+                      <ellipse rx={10} ry={6} fill={c.stroke} opacity=".25" />
+                      <text textAnchor="middle" dominantBaseline="middle" fontSize={9} fill={c.text} fontFamily="'DM Sans', sans-serif" style={{ pointerEvents: 'none', userSelect: 'none' }}>{'···'}</text>
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -845,6 +879,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
             return !v;
           });
         }}
+        onToggleCollapse={toggleCollapse}
+        canCollapse={!!selectedId && Object.values(map.nodes).some(n => n.parentId === selectedId)}
+        isCollapsed={!!selectedId && !!map.nodes[selectedId]?.collapsed}
         onStartLink={startLinking}
         onStartReparent={startReparenting}
         onToggleLinkStyle={() => {

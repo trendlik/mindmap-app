@@ -14,6 +14,7 @@ export interface MindMapNode {
   h: number;
   notes?: string;
   link?: string;
+  collapsed?: boolean;
 }
 
 export interface Edge {
