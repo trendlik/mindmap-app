@@ -26,6 +26,10 @@ export default function App() {
     updateLink,
     deleteLink,
     applyAutoLayout,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useMindMapStore(user?.uid ?? null);
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
@@ -71,6 +75,10 @@ export default function App() {
           onUpdateLink={updateLink}
           onDeleteLink={deleteLink}
           onAutoLayout={applyAutoLayout}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
           onExportJson={exportJson}
           onExportImg={exportSvg}
         />

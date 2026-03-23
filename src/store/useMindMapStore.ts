@@ -109,6 +109,11 @@ export function useMindMapStore(userId: string | null) {
   const [activeMapId, setActiveMapId] = useState(() => Object.keys(loadLocalState() || defaultMaps())[0]);
   const viewRef = useRef<Record<string, { tx: number; ty: number; scale: number }>>({});
 
+  // Undo / redo history (per-map snapshots)
+  const undoStack = useRef<{ mapId: string; snapshot: MindMap }[]>([]);
+  const redoStack = useRef<{ mapId: string; snapshot: MindMap }[]>([]);
+  const MAX_UNDO = 50;
+
   // Track whether Firestore has loaded initial data
   const firestoreLoadedRef = useRef(false);
   // Track locally-originated writes to avoid echo from Firestore snapshot
@@ -196,6 +201,49 @@ export function useMindMapStore(userId: string | null) {
     }, mapId);
   }, [update]);
 
+  const updateMapWithUndo = useCallback((mapId: string, updater: (m: MindMap) => MindMap) => {
+    setMaps(prev => {
+      const m = prev[mapId];
+      if (!m) return prev;
+      // Push snapshot before mutation
+      undoStack.current = [...undoStack.current.slice(-(MAX_UNDO - 1)), { mapId, snapshot: m }];
+      redoStack.current = [];
+      const next = { ...prev, [mapId]: updater(m) };
+      persist(next, mapId);
+      return next;
+    });
+  }, [persist]);
+
+  const undo = useCallback(() => {
+    const entry = undoStack.current[undoStack.current.length - 1];
+    if (!entry) return;
+    undoStack.current = undoStack.current.slice(0, -1);
+    setMaps(prev => {
+      const current = prev[entry.mapId];
+      if (current) {
+        redoStack.current = [...redoStack.current, { mapId: entry.mapId, snapshot: current }];
+      }
+      const next = { ...prev, [entry.mapId]: entry.snapshot };
+      persist(next, entry.mapId);
+      return next;
+    });
+  }, [persist]);
+
+  const redo = useCallback(() => {
+    const entry = redoStack.current[redoStack.current.length - 1];
+    if (!entry) return;
+    redoStack.current = redoStack.current.slice(0, -1);
+    setMaps(prev => {
+      const current = prev[entry.mapId];
+      if (current) {
+        undoStack.current = [...undoStack.current, { mapId: entry.mapId, snapshot: current }];
+      }
+      const next = { ...prev, [entry.mapId]: entry.snapshot };
+      persist(next, entry.mapId);
+      return next;
+    });
+  }, [persist]);
+
   const saveView = useCallback((mapId: string, tx: number, ty: number, scale: number) => {
     viewRef.current[mapId] = { tx, ty, scale };
     updateMap(mapId, m => ({ ...m, tx, ty, scale }));
@@ -241,8 +289,8 @@ export function useMindMapStore(userId: string | null) {
   }, [activeMapId, userId]);
 
   const renameMap = useCallback((mapId: string, name: string) => {
-    updateMap(mapId, m => ({ ...m, name }));
-  }, [updateMap]);
+    updateMapWithUndo(mapId, m => ({ ...m, name }));
+  }, [updateMapWithUndo]);
 
   const switchMap = useCallback((mapId: string) => {
     setActiveMapId(mapId);
@@ -250,20 +298,24 @@ export function useMindMapStore(userId: string | null) {
 
   const addNode = useCallback((mapId: string, label: string, x: number, y: number, parentId: string | null, depth: number) => {
     const id = uid();
-    updateMap(mapId, m => ({
+    updateMapWithUndo(mapId, m => ({
       ...m,
       nodes: { ...m.nodes, [id]: { id, label, x, y, parentId, depth: depth || 0, w: 0, h: 36 } },
       edges: parentId ? [...m.edges, { from: parentId, to: id }] : m.edges,
     }));
     return id;
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   const updateNode = useCallback((mapId: string, nodeId: string, changes: Partial<MindMapNode>) => {
-    updateMap(mapId, m => ({
+    // Position-only changes (dragging) don't get undo entries
+    const keys = Object.keys(changes);
+    const isPositionOnly = keys.every(k => k === 'x' || k === 'y');
+    const fn = isPositionOnly ? updateMap : updateMapWithUndo;
+    fn(mapId, m => ({
       ...m,
       nodes: { ...m.nodes, [nodeId]: { ...m.nodes[nodeId], ...changes } },
     }));
-  }, [updateMap]);
+  }, [updateMap, updateMapWithUndo]);
 
   const deleteNode = useCallback((mapId: string, nodeId: string, allNodes: Record<string, MindMapNode>, allEdges: Edge[]) => {
     const toDelete = new Set<string>();
@@ -275,16 +327,16 @@ export function useMindMapStore(userId: string | null) {
     const newNodes = { ...allNodes };
     toDelete.forEach(id => delete newNodes[id]);
     const newEdges = allEdges.filter(e => !toDelete.has(e.from) && !toDelete.has(e.to));
-    updateMap(mapId, m => ({
+    updateMapWithUndo(mapId, m => ({
       ...m,
       nodes: newNodes,
       edges: newEdges,
       links: (m.links || []).filter(l => !toDelete.has(l.from) && !toDelete.has(l.to)),
     }));
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   const applyAutoLayout = useCallback((mapId: string, canvasHeight: number, currentScale: number, currentTy: number) => {
-    updateMap(mapId, m => {
+    updateMapWithUndo(mapId, m => {
       const nodes = { ...m.nodes };
       const roots = Object.values(nodes).filter(n => !n.parentId);
       if (!roots.length) return m;
@@ -315,7 +367,7 @@ export function useMindMapStore(userId: string | null) {
       layout(roots[0].id, 100, startY);
       return { ...m, nodes };
     });
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   const reparentNode = useCallback((mapId: string, nodeId: string, newParentId: string, allNodes: Record<string, MindMapNode>) => {
     const node = allNodes[nodeId];
@@ -335,7 +387,7 @@ export function useMindMapStore(userId: string | null) {
     const newDepth = allNodes[newParentId].depth + 1;
     const depthDelta = newDepth - node.depth;
 
-    updateMap(mapId, m => {
+    updateMapWithUndo(mapId, m => {
       const nodes = { ...m.nodes };
       // Update the moved node
       nodes[nodeId] = { ...nodes[nodeId], parentId: newParentId, depth: newDepth };
@@ -352,30 +404,30 @@ export function useMindMapStore(userId: string | null) {
       edges.push({ from: newParentId, to: nodeId });
       return { ...m, nodes, edges };
     });
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   const addLink = useCallback((mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke']) => {
     const id = uid();
-    updateMap(mapId, m => ({
+    updateMapWithUndo(mapId, m => ({
       ...m,
       links: [...(m.links || []), { id, from, to, style, stroke }],
     }));
     return id;
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   const updateLink = useCallback((mapId: string, linkId: string, changes: Partial<CustomLink>) => {
-    updateMap(mapId, m => ({
+    updateMapWithUndo(mapId, m => ({
       ...m,
       links: (m.links || []).map(l => l.id === linkId ? { ...l, ...changes } : l),
     }));
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   const deleteLink = useCallback((mapId: string, linkId: string) => {
-    updateMap(mapId, m => ({
+    updateMapWithUndo(mapId, m => ({
       ...m,
       links: (m.links || []).filter(l => l.id !== linkId),
     }));
-  }, [updateMap]);
+  }, [updateMapWithUndo]);
 
   return {
     maps,
@@ -393,5 +445,9 @@ export function useMindMapStore(userId: string | null) {
     updateLink,
     deleteLink,
     applyAutoLayout,
+    undo,
+    redo,
+    canUndo: undoStack.current.length > 0,
+    canRedo: redoStack.current.length > 0,
   };
 }

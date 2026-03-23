@@ -16,6 +16,10 @@ interface CanvasProps {
   onUpdateLink: (mapId: string, linkId: string, changes: Partial<CustomLink>) => void;
   onDeleteLink: (mapId: string, linkId: string) => void;
   onAutoLayout: (mapId: string, canvasHeight: number, currentScale: number, currentTy: number) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   onExportJson: (map: MindMap) => void;
   onExportImg: (map: MindMap) => void;
 }
@@ -52,7 +56,7 @@ function touchMid(a: React.Touch, b: React.Touch, rect: DOMRect) {
   };
 }
 
-export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onExportJson, onExportImg }: CanvasProps) {
+export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
   const [ty, setTy] = useState(map?.ty ?? 0);
@@ -85,6 +89,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const editInputRef = useRef<HTMLInputElement>(null);
   const deleteSelectedRef = useRef<() => void>(() => {});
   const editingIdRef = useRef(editingId);
+  const undoRef = useRef(onUndo);
+  const redoRef = useRef(onRedo);
   const mapIdRef = useRef(map?.id);
 
   useEffect(() => {
@@ -244,6 +250,14 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current) {
         deleteSelectedRef.current();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undoRef.current();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redoRef.current();
       }
     }
     window.addEventListener('mousemove', onMouseMove);
@@ -484,6 +498,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   }
   deleteSelectedRef.current = deleteSelected;
   editingIdRef.current = editingId;
+  undoRef.current = onUndo;
+  redoRef.current = onRedo;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
@@ -718,6 +734,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         linkStroke={linkStroke}
         onSetLinkStyle={setLinkStyle}
         onSetLinkStroke={setLinkStroke}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onLayout={handleLayout}
         onFitView={fitView}
         onExportJson={() => onExportJson(map)}

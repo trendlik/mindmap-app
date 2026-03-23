@@ -12,6 +12,10 @@ interface ToolbarProps {
   onToggleLinkStroke: () => void;
   onSetLinkStyle: (s: CustomLink['style']) => void;
   onSetLinkStroke: (s: CustomLink['stroke']) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   onLayout: () => void;
   onFitView: () => void;
   onExportJson: () => void;
@@ -30,6 +34,7 @@ export default function Toolbar(props: ToolbarProps) {
   const {
     onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink, onStartReparent,
     onToggleLinkStyle, onToggleLinkStroke, onSetLinkStyle, onSetLinkStroke,
+    onUndo, onRedo, canUndo, canRedo,
     onLayout, onFitView, onExportJson, onExportImg,
     hasSelected, notesOpen, isLinking, isReparenting, canReparent, selectedLink, linkStyle, linkStroke,
   } = props;
@@ -111,6 +116,15 @@ export default function Toolbar(props: ToolbarProps) {
         </>
       )}
 
+      <div className={styles.sep} />
+      <button className={styles.btn} onClick={onUndo} disabled={!canUndo} title="Undo (⌘Z)">
+        <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M3 3.5L1 1.5L3 -.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" transform="translate(0,2)"/><path d="M1 3.5h5.5a3 3 0 010 6H4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+        undo
+      </button>
+      <button className={styles.btn} onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+        <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M8 3.5L10 1.5L8 -.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" transform="translate(0,2)"/><path d="M10 3.5H4.5a3 3 0 000 6H7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+        redo
+      </button>
       <div className={styles.sep} />
       <button className={styles.btn} onClick={onLayout}>
         <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><rect x="1" y="1" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7" y="1" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7" y="6" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M4 2.5h1.5a1 1 0 011 1v3" stroke="currentColor" strokeWidth="1.2"/></svg>
