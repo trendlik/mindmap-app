@@ -591,7 +591,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     x1={a.x} y1={a.y} x2={b.x} y2={b.y}
                     stroke={color}
                     strokeWidth={isSel ? 2 : 1.5}
-                    strokeDasharray="6 3"
+                    strokeDasharray={link.stroke === 'dashed' ? '6 3' : 'none'}
                     markerEnd={link.style === 'arrow' ? (isSel ? 'url(#arrowhead-sel)' : 'url(#arrowhead)') : undefined}
                     style={{ pointerEvents: 'none' }}
                   />
