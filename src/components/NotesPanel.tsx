@@ -1,3 +1,4 @@
+import { useRef, useEffect, useCallback } from 'react';
 import styles from './NotesPanel.module.css';
 
 interface NotesPanelProps {
@@ -24,7 +25,49 @@ function isInternalLink(link: string): boolean {
   return link.startsWith('#');
 }
 
+function fmt(command: string, value?: string) {
+  document.execCommand(command, false, value);
+}
+
+interface FmtBtnProps {
+  command: string;
+  title: string;
+  children: React.ReactNode;
+}
+
+function FmtBtn({ command, title, children }: FmtBtnProps) {
+  return (
+    <button
+      className={styles.fmtBtn}
+      title={title}
+      onMouseDown={e => { e.preventDefault(); fmt(command); }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function NotesPanel({ nodeLabel, notes, link, onChange, onChangeLink, onClose }: NotesPanelProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isInternalUpdate = useRef(false);
+
+  // Sync external notes prop → editor HTML (only when the prop changes from outside)
+  useEffect(() => {
+    if (isInternalUpdate.current) {
+      isInternalUpdate.current = false;
+      return;
+    }
+    if (editorRef.current && editorRef.current.innerHTML !== notes) {
+      editorRef.current.innerHTML = notes;
+    }
+  }, [notes]);
+
+  const handleInput = useCallback(() => {
+    if (!editorRef.current) return;
+    isInternalUpdate.current = true;
+    onChange(editorRef.current.innerHTML);
+  }, [onChange]);
+
   function handleLinkBlur() {
     const normalized = normalizeLink(link);
     if (normalized !== link) onChangeLink(normalized);
@@ -77,11 +120,47 @@ export default function NotesPanel({ nodeLabel, notes, link, onChange, onChangeL
           </a>
         )}
       </div>
-      <textarea
-        className={styles.textarea}
-        value={notes}
-        onChange={e => onChange(e.target.value)}
-        placeholder="Add notes..."
+      <div className={styles.fmtBar}>
+        <FmtBtn command="bold" title="Bold (⌘B)">
+          <strong>B</strong>
+        </FmtBtn>
+        <FmtBtn command="italic" title="Italic (⌘I)">
+          <em>I</em>
+        </FmtBtn>
+        <FmtBtn command="underline" title="Underline (⌘U)">
+          <u>U</u>
+        </FmtBtn>
+        <FmtBtn command="strikeThrough" title="Strikethrough">
+          <s>S</s>
+        </FmtBtn>
+        <div className={styles.fmtSep} />
+        <FmtBtn command="insertUnorderedList" title="Bullet list">
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <circle cx="1.5" cy="2" r="1.2" fill="currentColor"/>
+            <line x1="4" y1="2" x2="11" y2="2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <circle cx="1.5" cy="5.5" r="1.2" fill="currentColor"/>
+            <line x1="4" y1="5.5" x2="11" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <circle cx="1.5" cy="9" r="1.2" fill="currentColor"/>
+            <line x1="4" y1="9" x2="11" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+        </FmtBtn>
+        <FmtBtn command="insertOrderedList" title="Numbered list">
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <text x="0" y="3.5" fontSize="4.5" fill="currentColor" fontFamily="sans-serif">1</text>
+            <line x1="4" y1="2" x2="11" y2="2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <text x="0" y="7" fontSize="4.5" fill="currentColor" fontFamily="sans-serif">2</text>
+            <line x1="4" y1="5.5" x2="11" y2="5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <text x="0" y="10.5" fontSize="4.5" fill="currentColor" fontFamily="sans-serif">3</text>
+            <line x1="4" y1="9" x2="11" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+        </FmtBtn>
+      </div>
+      <div
+        ref={editorRef}
+        className={styles.editor}
+        contentEditable
+        onInput={handleInput}
+        data-placeholder="Add notes..."
       />
     </div>
   );
