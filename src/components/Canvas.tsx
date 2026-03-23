@@ -62,6 +62,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const [editValue, setEditValue] = useState('');
   const [editPos, setEditPos] = useState({ x: 0, y: 0, w: 0, h: 0 });
   const [notesOpen, setNotesOpen] = useState(false);
+  const [notesNodeId, setNotesNodeId] = useState<string | null>(null);
 
   // Linking mode
   const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
@@ -162,7 +163,6 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       if (reparentingFrom) { setReparentingFrom(null); return; }
       setSelectedId(null);
       setSelectedLinkId(null);
-      setNotesOpen(false);
       const { cx, cy } = getSVGXY(e);
       panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
     }
@@ -189,6 +189,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
     setSelectedId(nodeId);
     setSelectedLinkId(null);
+    if (notesOpen) setNotesNodeId(nodeId);
     const { cx, cy } = getSVGXY(e);
     const w = toWorld(cx, cy);
     const n = map!.nodes[nodeId];
@@ -200,7 +201,6 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (linkingFrom) return;
     setSelectedLinkId(linkId);
     setSelectedId(null);
-    setNotesOpen(false);
   }
 
   useEffect(() => {
@@ -315,6 +315,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         // Tap on node — start drag
         setSelectedId(nodeId);
         setSelectedLinkId(null);
+        if (notesOpen) setNotesNodeId(nodeId);
         const w = toWorld(cx, cy);
         const n = map!.nodes[nodeId];
         touchDragRef.current = { id: nodeId, ox: w.x - n.x, oy: w.y - n.y, moved: false };
@@ -341,7 +342,6 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (reparentingFrom) { setReparentingFrom(null); return; }
         setSelectedId(null);
         setSelectedLinkId(null);
-        setNotesOpen(false);
         panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
         lastTapRef.current = { time: 0, nodeId: null };
       }
@@ -472,7 +472,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!selectedId || Object.keys(map.nodes).length <= 1) return;
     onDeleteNode(map.id, selectedId, map.nodes, map.edges);
     setSelectedId(null);
-    setNotesOpen(false);
+    if (notesNodeId === selectedId) {
+      setNotesOpen(false);
+      setNotesNodeId(null);
+    }
   }
 
   function handleLayout() {
@@ -690,7 +693,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onAddChild={addChild}
         onAddSibling={addSibling}
         onDelete={deleteSelected}
-        onToggleNotes={() => setNotesOpen(v => !v)}
+        onToggleNotes={() => {
+          setNotesOpen(v => {
+            if (!v && selectedId) setNotesNodeId(selectedId);
+            return !v;
+          });
+        }}
         onStartLink={startLinking}
         onStartReparent={startReparenting}
         onToggleLinkStyle={() => {
@@ -709,11 +717,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onExportImg={() => onExportImg(map)}
       />
 
-      {notesOpen && selectedId && map.nodes[selectedId] && (
+      {notesOpen && notesNodeId && map.nodes[notesNodeId] && (
         <NotesPanel
-          nodeLabel={map.nodes[selectedId].label}
-          notes={map.nodes[selectedId].notes || ''}
-          onChange={(notes) => onUpdateNode(map.id, selectedId, { notes })}
+          nodeLabel={map.nodes[notesNodeId].label}
+          notes={map.nodes[notesNodeId].notes || ''}
+          onChange={(notes) => onUpdateNode(map.id, notesNodeId, { notes })}
           onClose={() => setNotesOpen(false)}
         />
       )}
