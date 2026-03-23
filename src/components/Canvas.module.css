@@ -55,6 +55,35 @@
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zoomBtn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.zoomBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.zoomHash {
+  margin-left: 2px;
 }
 
 .linkingHint {

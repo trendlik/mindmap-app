@@ -262,6 +262,18 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     onSaveView(map!.id, ntx, nty, ns);
   }
 
+  function zoomBy(delta: number) {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const ns = Math.min(3, Math.max(0.15, viewRef.current.scale * delta));
+    const ntx = cx - (cx - viewRef.current.tx) * (ns / viewRef.current.scale);
+    const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
+    setTx(ntx); setTy(nty); setScale(ns);
+    if (map) onSaveView(map.id, ntx, nty, ns);
+  }
+
   function onTouchStart(e: React.TouchEvent<SVGSVGElement>) {
     if (!svgRef.current) return;
     const touches = e.touches;
@@ -724,7 +736,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           : 'double-click to edit · drag to pan · scroll to zoom'}
       </div>
       <div className={styles.zoom}>
-        {Math.round(scale * 100)}% · {__COMMIT_HASH__}
+        <button className={styles.zoomBtn} onClick={() => zoomBy(0.9)} title="Zoom out">−</button>
+        <span>{Math.round(scale * 100)}%</span>
+        <button className={styles.zoomBtn} onClick={() => zoomBy(1.1)} title="Zoom in">+</button>
+        <span className={styles.zoomHash}>{__COMMIT_HASH__}</span>
       </div>
     </div>
   );
