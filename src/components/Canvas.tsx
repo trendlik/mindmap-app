@@ -66,7 +66,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   // Linking mode
   const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
   const [linkStyle, setLinkStyle] = useState<CustomLink['style']>('arrow');
-  const [linkStroke, setLinkStroke] = useState<CustomLink['stroke']>('solid');
+  const [linkStroke, setLinkStroke] = useState<CustomLink['stroke']>('dashed');
   const [mouseWorld, setMouseWorld] = useState({ x: 0, y: 0 });
 
   // Reparent mode
