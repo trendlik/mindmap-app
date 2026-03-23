@@ -83,6 +83,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const touchDragRef = useRef<DragState | null>(null);
   const viewRef = useRef({ tx, ty, scale });
   const editInputRef = useRef<HTMLInputElement>(null);
+  const deleteSelectedRef = useRef<() => void>(() => {});
+  const editingIdRef = useRef(editingId);
   const mapIdRef = useRef(map?.id);
 
   useEffect(() => {
@@ -239,6 +241,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       if (e.key === 'Escape') {
         if (linkingFrom) setLinkingFrom(null);
         if (reparentingFrom) setReparentingFrom(null);
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current) {
+        deleteSelectedRef.current();
       }
     }
     window.addEventListener('mousemove', onMouseMove);
@@ -477,6 +482,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setNotesNodeId(null);
     }
   }
+  deleteSelectedRef.current = deleteSelected;
+  editingIdRef.current = editingId;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
