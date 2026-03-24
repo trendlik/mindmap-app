@@ -56,6 +56,19 @@ interface PinchState {
   cy: number;
 }
 
+/** Find the point on a rectangle's edge closest to a target point, from the rect's center. */
+function rectEdgePoint(cx: number, cy: number, w: number, h: number, tx: number, ty: number) {
+  const dx = tx - cx;
+  const dy = ty - cy;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+  const hw = w / 2 + 4; // small padding so arrow doesn't touch the rect
+  const hh = h / 2 + 4;
+  const sx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+  const sy = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+  const s = Math.min(sx, sy);
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+
 function touchDist(a: React.Touch, b: React.Touch) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
@@ -735,20 +748,24 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               const hasArrowFrom = link.arrowFrom ?? false;
               const markerEnd = hasArrowTo ? (isSel ? 'url(#arrowhead-sel)' : 'url(#arrowhead)') : undefined;
               const markerStart = hasArrowFrom ? (isSel ? 'url(#arrowhead-start-sel)' : 'url(#arrowhead-start)') : undefined;
+              // Compute edge points so arrows aren't hidden behind nodes
+              const aSize = measureNode(a.label);
+              const bSize = measureNode(b.label);
+              const aEdge = rectEdgePoint(a.x, a.y, aSize.w, aSize.h, b.x, b.y);
+              const bEdge = rectEdgePoint(b.x, b.y, bSize.w, bSize.h, a.x, a.y);
               // Quadratic Bézier: control point offset perpendicular to the line
-              const mx = (a.x + b.x) / 2;
-              const my = (a.y + b.y) / 2;
-              const dx = b.x - a.x;
-              const dy = b.y - a.y;
+              const mx = (aEdge.x + bEdge.x) / 2;
+              const my = (aEdge.y + bEdge.y) / 2;
+              const dx = bEdge.x - aEdge.x;
+              const dy = bEdge.y - aEdge.y;
               const dist = Math.hypot(dx, dy) || 1;
               const bow = Math.min(dist * 0.2, 60);
-              // Perpendicular direction (normalized), offset the control point
               const cx = mx - (dy / dist) * bow;
               const cy = my + (dx / dist) * bow;
-              const d = `M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`;
+              const d = `M${aEdge.x},${aEdge.y} Q${cx},${cy} ${bEdge.x},${bEdge.y}`;
               // Label position: point on the quadratic at t=0.5
-              const lx = 0.25 * a.x + 0.5 * cx + 0.25 * b.x;
-              const ly = 0.25 * a.y + 0.5 * cy + 0.25 * b.y;
+              const lx = 0.25 * aEdge.x + 0.5 * cx + 0.25 * bEdge.x;
+              const ly = 0.25 * aEdge.y + 0.5 * cy + 0.25 * bEdge.y;
               return (
                 <g key={link.id}>
                   {/* Hit target (invisible wider path) */}
