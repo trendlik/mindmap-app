@@ -685,17 +685,17 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onTouchEnd={onTouchEnd}
       >
         <defs>
-          <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#888" />
+          <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto" overflow="visible">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#888" />
           </marker>
-          <marker id="arrowhead-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#1D9E75" />
+          <marker id="arrowhead-sel" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto" overflow="visible">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#1D9E75" />
           </marker>
-          <marker id="arrowhead-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 10 0 L 0 5 L 10 10 z" fill="#888" />
+          <marker id="arrowhead-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="10" markerHeight="10" orient="auto" overflow="visible">
+            <path d="M 10 1 L 2 5 L 10 9 z" fill="#888" />
           </marker>
-          <marker id="arrowhead-start-sel" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 10 0 L 0 5 L 10 10 z" fill="#1D9E75" />
+          <marker id="arrowhead-start-sel" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="10" markerHeight="10" orient="auto" overflow="visible">
+            <path d="M 10 1 L 2 5 L 10 9 z" fill="#1D9E75" />
           </marker>
         </defs>
         <g transform={`translate(${tx},${ty}) scale(${scale})`}>
