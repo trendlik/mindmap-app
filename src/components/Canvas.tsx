@@ -731,25 +731,38 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               if (!a || !b) return null;
               const isSel = link.id === selectedLinkId;
               const color = isSel ? '#1D9E75' : '#888';
-              // Backward compat: old links without arrowFrom/arrowTo use style field
               const hasArrowTo = link.arrowTo ?? (link.style === 'arrow');
               const hasArrowFrom = link.arrowFrom ?? false;
               const markerEnd = hasArrowTo ? (isSel ? 'url(#arrowhead-sel)' : 'url(#arrowhead)') : undefined;
               const markerStart = hasArrowFrom ? (isSel ? 'url(#arrowhead-start-sel)' : 'url(#arrowhead-start)') : undefined;
+              // Quadratic Bézier: control point offset perpendicular to the line
               const mx = (a.x + b.x) / 2;
               const my = (a.y + b.y) / 2;
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              const dist = Math.hypot(dx, dy) || 1;
+              const bow = Math.min(dist * 0.2, 60);
+              // Perpendicular direction (normalized), offset the control point
+              const cx = mx - (dy / dist) * bow;
+              const cy = my + (dx / dist) * bow;
+              const d = `M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`;
+              // Label position: point on the quadratic at t=0.5
+              const lx = 0.25 * a.x + 0.5 * cx + 0.25 * b.x;
+              const ly = 0.25 * a.y + 0.5 * cy + 0.25 * b.y;
               return (
                 <g key={link.id}>
-                  {/* Hit target (invisible wider line) */}
-                  <line
-                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                  {/* Hit target (invisible wider path) */}
+                  <path
+                    d={d}
+                    fill="none"
                     stroke="transparent"
                     strokeWidth="12"
                     style={{ cursor: 'pointer' }}
                     onMouseDown={e => onLinkClick(e, link.id)}
                   />
-                  <line
-                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                  <path
+                    d={d}
+                    fill="none"
                     stroke={color}
                     strokeWidth={isSel ? 2 : 1.5}
                     strokeDasharray={link.stroke === 'dashed' ? '6 3' : 'none'}
@@ -759,7 +772,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                   />
                   {link.label && (
                     <text
-                      x={mx} y={my - 6}
+                      x={lx} y={ly - 6}
                       textAnchor="middle"
                       fontSize={11}
                       fill={color}
