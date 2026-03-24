@@ -28,6 +28,9 @@ export interface CustomLink {
   to: string;
   style: 'arrow' | 'line';
   stroke: 'solid' | 'dashed';
+  arrowFrom?: boolean;
+  arrowTo?: boolean;
+  label?: string;
 }
 
 export interface MindMap {
@@ -408,11 +411,12 @@ export function useMindMapStore(userId: string | null) {
     });
   }, [updateMapWithUndo]);
 
-  const addLink = useCallback((mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke']) => {
+  const addLink = useCallback((mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke'], arrowFrom = false) => {
     const id = uid();
+    const arrowTo = style === 'arrow';
     updateMapWithUndo(mapId, m => ({
       ...m,
-      links: [...(m.links || []), { id, from, to, style, stroke }],
+      links: [...(m.links || []), { id, from, to, style, stroke, arrowFrom, arrowTo }],
     }));
     return id;
   }, [updateMapWithUndo]);

@@ -8,10 +8,13 @@ interface ToolbarProps {
   onToggleNotes: () => void;
   onStartLink: () => void;
   onStartReparent: () => void;
-  onToggleLinkStyle: () => void;
   onToggleLinkStroke: () => void;
-  onSetLinkStyle: (s: CustomLink['style']) => void;
   onSetLinkStroke: (s: CustomLink['stroke']) => void;
+  onToggleArrowFrom: () => void;
+  onToggleArrowTo: () => void;
+  onSetArrowFrom: (v: boolean) => void;
+  onSetArrowTo: (v: boolean) => void;
+  onSetLinkLabel: (label: string) => void;
   onToggleCollapse: () => void;
   canCollapse: boolean;
   isCollapsed: boolean;
@@ -29,19 +32,26 @@ interface ToolbarProps {
   isReparenting: boolean;
   canReparent: boolean;
   selectedLink: CustomLink | null;
-  linkStyle: CustomLink['style'];
+  linkArrowFrom: boolean;
+  linkArrowTo: boolean;
   linkStroke: CustomLink['stroke'];
 }
 
 export default function Toolbar(props: ToolbarProps) {
   const {
     onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink, onStartReparent,
-    onToggleLinkStyle, onToggleLinkStroke, onSetLinkStyle, onSetLinkStroke,
+    onToggleLinkStroke, onSetLinkStroke,
+    onToggleArrowFrom, onToggleArrowTo, onSetArrowFrom, onSetArrowTo, onSetLinkLabel,
     onToggleCollapse, canCollapse, isCollapsed,
     onUndo, onRedo, canUndo, canRedo,
     onLayout, onFitView, onExportJson, onExportImg,
-    hasSelected, notesOpen, isLinking, isReparenting, canReparent, selectedLink, linkStyle, linkStroke,
+    hasSelected, notesOpen, isLinking, isReparenting, canReparent,
+    selectedLink, linkArrowFrom, linkArrowTo, linkStroke,
   } = props;
+
+  const showArrowFrom = selectedLink ? (selectedLink.arrowFrom ?? false) : linkArrowFrom;
+  const showArrowTo = selectedLink ? (selectedLink.arrowTo ?? (selectedLink.style === 'arrow')) : linkArrowTo;
+  const showStroke = selectedLink?.stroke ?? linkStroke;
 
   return (
     <div className={styles.toolbar}>
@@ -92,34 +102,44 @@ export default function Toolbar(props: ToolbarProps) {
       {(isLinking || selectedLink) && (
         <>
           <div className={styles.sep} />
+          {/* Arrow at start (from) */}
           <button
-            className={`${styles.btn} ${styles.small}`}
+            className={`${styles.btn} ${styles.small} ${showArrowFrom ? styles.active : ''}`}
             onClick={() => {
-              if (selectedLink) onToggleLinkStyle();
-              else onSetLinkStyle(linkStyle === 'arrow' ? 'line' : 'arrow');
+              if (selectedLink) onToggleArrowFrom();
+              else onSetArrowFrom(!linkArrowFrom);
             }}
-            title={selectedLink ? `Style: ${selectedLink.style}` : `Style: ${linkStyle}`}
+            title="Arrow at start"
           >
-            {(selectedLink?.style ?? linkStyle) === 'arrow' ? (
-              <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
-                <path d="M1 5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                <path d="M9 2l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            ) : (
-              <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
-                <path d="M1 5h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-            )}
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+              <path d="M4 5h9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M5 2L2 5l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
+          {/* Arrow at end (to) */}
+          <button
+            className={`${styles.btn} ${styles.small} ${showArrowTo ? styles.active : ''}`}
+            onClick={() => {
+              if (selectedLink) onToggleArrowTo();
+              else onSetArrowTo(!linkArrowTo);
+            }}
+            title="Arrow at end"
+          >
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+              <path d="M1 5h9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M9 2l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {/* Stroke style */}
           <button
             className={`${styles.btn} ${styles.small}`}
             onClick={() => {
               if (selectedLink) onToggleLinkStroke();
               else onSetLinkStroke(linkStroke === 'solid' ? 'dashed' : 'solid');
             }}
-            title={selectedLink ? `Stroke: ${selectedLink.stroke}` : `Stroke: ${linkStroke}`}
+            title={`Stroke: ${showStroke}`}
           >
-            {(selectedLink?.stroke ?? linkStroke) === 'solid' ? (
+            {showStroke === 'solid' ? (
               <svg width="14" height="4" viewBox="0 0 14 4" fill="none">
                 <path d="M1 2h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
@@ -129,6 +149,16 @@ export default function Toolbar(props: ToolbarProps) {
               </svg>
             )}
           </button>
+          {/* Label input (only for existing selected link) */}
+          {selectedLink && (
+            <input
+              className={styles.linkLabel}
+              type="text"
+              value={selectedLink.label || ''}
+              onChange={e => onSetLinkLabel(e.target.value)}
+              placeholder="label..."
+            />
+          )}
         </>
       )}
 

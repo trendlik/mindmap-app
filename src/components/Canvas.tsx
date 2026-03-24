@@ -12,7 +12,7 @@ interface CanvasProps {
   onUpdateNode: (mapId: string, nodeId: string, changes: Partial<MindMapNode>) => void;
   onDeleteNode: (mapId: string, nodeId: string, nodes: Record<string, MindMapNode>, edges: Edge[]) => void;
   onReparentNode: (mapId: string, nodeId: string, newParentId: string, nodes: Record<string, MindMapNode>) => void;
-  onAddLink: (mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke']) => string;
+  onAddLink: (mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke'], arrowFrom?: boolean) => string;
   onUpdateLink: (mapId: string, linkId: string, changes: Partial<CustomLink>) => void;
   onDeleteLink: (mapId: string, linkId: string) => void;
   onAutoLayout: (mapId: string, canvasHeight: number, currentScale: number, currentTy: number) => void;
@@ -81,7 +81,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   // Linking mode
   const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
-  const [linkStyle, setLinkStyle] = useState<CustomLink['style']>('arrow');
+  const [linkArrowFrom, setLinkArrowFrom] = useState(false);
+  const [linkArrowTo, setLinkArrowTo] = useState(true);
   const [linkStroke, setLinkStroke] = useState<CustomLink['stroke']>('dashed');
   const [mouseWorld, setMouseWorld] = useState({ x: 0, y: 0 });
 
@@ -216,7 +217,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
     if (linkingFrom) {
       if (nodeId !== linkingFrom) {
-        onAddLink(map!.id, linkingFrom, nodeId, linkStyle, linkStroke);
+        onAddLink(map!.id, linkingFrom, nodeId, linkArrowTo ? 'arrow' : 'line', linkStroke, linkArrowFrom);
       }
       setLinkingFrom(null);
       return;
@@ -418,7 +419,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         // Handle linking / reparenting modes
         if (linkingFrom) {
           if (nodeId !== linkingFrom) {
-            onAddLink(map!.id, linkingFrom, nodeId, linkStyle, linkStroke);
+            onAddLink(map!.id, linkingFrom, nodeId, linkArrowTo ? 'arrow' : 'line', linkStroke, linkArrowFrom);
           }
           setLinkingFrom(null);
           return;
@@ -684,11 +685,17 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onTouchEnd={onTouchEnd}
       >
         <defs>
-          <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#888" />
           </marker>
-          <marker id="arrowhead-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <marker id="arrowhead-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#1D9E75" />
+          </marker>
+          <marker id="arrowhead-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="#888" />
+          </marker>
+          <marker id="arrowhead-start-sel" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 10 0 L 0 5 L 10 10 z" fill="#1D9E75" />
           </marker>
         </defs>
         <g transform={`translate(${tx},${ty}) scale(${scale})`}>
@@ -724,6 +731,13 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               if (!a || !b) return null;
               const isSel = link.id === selectedLinkId;
               const color = isSel ? '#1D9E75' : '#888';
+              // Backward compat: old links without arrowFrom/arrowTo use style field
+              const hasArrowTo = link.arrowTo ?? (link.style === 'arrow');
+              const hasArrowFrom = link.arrowFrom ?? false;
+              const markerEnd = hasArrowTo ? (isSel ? 'url(#arrowhead-sel)' : 'url(#arrowhead)') : undefined;
+              const markerStart = hasArrowFrom ? (isSel ? 'url(#arrowhead-start-sel)' : 'url(#arrowhead-start)') : undefined;
+              const mx = (a.x + b.x) / 2;
+              const my = (a.y + b.y) / 2;
               return (
                 <g key={link.id}>
                   {/* Hit target (invisible wider line) */}
@@ -739,9 +753,22 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     stroke={color}
                     strokeWidth={isSel ? 2 : 1.5}
                     strokeDasharray={link.stroke === 'dashed' ? '6 3' : 'none'}
-                    markerEnd={link.style === 'arrow' ? (isSel ? 'url(#arrowhead-sel)' : 'url(#arrowhead)') : undefined}
+                    markerEnd={markerEnd}
+                    markerStart={markerStart}
                     style={{ pointerEvents: 'none' }}
                   />
+                  {link.label && (
+                    <text
+                      x={mx} y={my - 6}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fill={color}
+                      fontFamily="'DM Sans', sans-serif"
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      {link.label}
+                    </text>
+                  )}
                 </g>
               );
             })}
@@ -885,16 +912,24 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         isCollapsed={!!selectedId && !!map.nodes[selectedId]?.collapsed}
         onStartLink={startLinking}
         onStartReparent={startReparenting}
-        onToggleLinkStyle={() => {
-          if (selectedLink) onUpdateLink(map.id, selectedLink.id, { style: selectedLink.style === 'arrow' ? 'line' : 'arrow' });
-        }}
         onToggleLinkStroke={() => {
           if (selectedLink) onUpdateLink(map.id, selectedLink.id, { stroke: selectedLink.stroke === 'solid' ? 'dashed' : 'solid' });
         }}
-        linkStyle={linkStyle}
-        linkStroke={linkStroke}
-        onSetLinkStyle={setLinkStyle}
+        onToggleArrowFrom={() => {
+          if (selectedLink) onUpdateLink(map.id, selectedLink.id, { arrowFrom: !(selectedLink.arrowFrom ?? false) });
+        }}
+        onToggleArrowTo={() => {
+          if (selectedLink) onUpdateLink(map.id, selectedLink.id, { arrowTo: !(selectedLink.arrowTo ?? (selectedLink.style === 'arrow')) });
+        }}
+        onSetArrowFrom={setLinkArrowFrom}
+        onSetArrowTo={setLinkArrowTo}
         onSetLinkStroke={setLinkStroke}
+        onSetLinkLabel={(label) => {
+          if (selectedLink) onUpdateLink(map.id, selectedLink.id, { label });
+        }}
+        linkArrowFrom={linkArrowFrom}
+        linkArrowTo={linkArrowTo}
+        linkStroke={linkStroke}
         onUndo={onUndo}
         onRedo={onRedo}
         canUndo={canUndo}

@@ -61,6 +61,26 @@
   margin: 0 3px;
 }
 
+.linkLabel {
+  width: 70px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: transparent;
+  outline: none;
+}
+
+.linkLabel::placeholder {
+  color: var(--text-tertiary);
+}
+
+.linkLabel:focus {
+  border-color: var(--accent);
+}
+
 /* Mobile toolbar: scrollable, icon-only, bigger tap targets */
 @media (max-width: 640px) {
   .toolbar {
