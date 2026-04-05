@@ -565,10 +565,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!pid) return;
     const p = map.nodes[pid];
     const ch = Object.values(map.nodes).filter(n => n.parentId === pid);
-    const id = onAddNode(map.id, 'new idea', p.x + 190, p.y + ch.length * 55 - (ch.length - 1) * 27, pid, (p.depth || 0) + 1);
+    const grandparent = p.parentId ? map.nodes[p.parentId] : null;
+    const xOffset = grandparent && p.x < grandparent.x ? -190 : 190;
+    const id = onAddNode(map.id, 'new idea', p.x + xOffset, p.y + ch.length * 55 - (ch.length - 1) * 27, pid, (p.depth || 0) + 1);
     setSelectedId(id);
     setTimeout(() => {
-      const n = map.nodes[id] || { label: 'new idea', x: p.x + 190, y: p.y };
+      const n = map.nodes[id] || { label: 'new idea', x: p.x + xOffset, y: p.y };
       const { w, h } = measureNode('new idea');
       const sx = (n.x - w / 2) * scale + tx;
       const sy = (n.y - h / 2) * scale + ty;
