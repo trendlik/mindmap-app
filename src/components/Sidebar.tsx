@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import type { MindMap } from '../store/useMindMapStore';
 import styles from './Sidebar.module.css';
+
+const MIN_WIDTH = 150;
+const MAX_WIDTH = 400;
 
 interface SidebarProps {
   maps: Record<string, MindMap>;
@@ -17,7 +20,11 @@ interface SidebarProps {
 export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelete, onRename, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [width, setWidth] = useState(210);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -25,6 +32,31 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
       inputRef.current.select();
     }
   }, [editingId]);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragging.current) return;
+    const delta = e.clientX - startX.current;
+    setWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta)));
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    dragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  }, [onMouseMove]);
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    dragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
 
   function startRename(id: string, name: string) {
     setEditingId(id);
@@ -45,7 +77,7 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
   }
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} style={{ width, minWidth: width }}>
       <div className={styles.header}>
         <span className={styles.title}>maps</span>
         <button className={styles.newBtn} onClick={handleNewMap} title="New map">
@@ -78,7 +110,7 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
                 onClick={e => e.stopPropagation()}
               />
             ) : (
-              <span className={styles.name}>{m.name}</span>
+              <span className={styles.name} title={m.name}>{m.name}</span>
             )}
             {Object.keys(maps).length > 1 && (
               <button
@@ -114,6 +146,7 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
         )}
         <span className={styles.footerText}>{Object.keys(maps).length} map{Object.keys(maps).length !== 1 ? 's' : ''}</span>
       </div>
+      <div className={styles.resizeHandle} onMouseDown={startResize} />
     </aside>
   );
 }

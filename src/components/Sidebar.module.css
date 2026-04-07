@@ -1,11 +1,11 @@
 .sidebar {
-  width: 210px;
-  min-width: 210px;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-soft);
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .header {
@@ -183,4 +183,19 @@
 .footerText {
   font-size: 11px;
   color: var(--text-tertiary);
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resizeHandle:hover {
+  background: var(--accent);
+  opacity: 0.3;
 }
