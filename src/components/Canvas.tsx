@@ -853,24 +853,30 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     stroke={(isSel || isMultiSel) ? '#1D9E75' : c.stroke}
                     strokeWidth={(isSel || isMultiSel) ? 2 : 1}
                   />
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={n.depth === 0 ? 14 : 13}
-                    fontWeight={n.depth === 0 ? 500 : 400}
-                    fill={c.text}
-                    fontFamily="'DM Sans', sans-serif"
-                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                  >
-                    {(() => {
-                      const lines = wrapText(n.label);
-                      const lineH = 20;
-                      return lines.map((line, i) => {
-                        const y = (h - (lines.length - 1) * lineH) / 2 + i * lineH;
-                        return <tspan key={i} x={w / 2} y={y}>{line}</tspan>;
-                      });
-                    })()}
-                  </text>
+                  {(() => {
+                    const lines = wrapText(n.label);
+                    const lineH = 20;
+                    const fontSize = n.depth === 0 ? 14 : 13;
+                    // Vertically center the text block inside the rect.
+                    // Each line is lineH px tall; anchor the first line so the
+                    // whole block is centered.
+                    const blockH = lines.length * lineH;
+                    const startY = (h - blockH) / 2 + lineH * 0.78; // 0.78 ≈ ascender ratio
+                    return (
+                      <text
+                        textAnchor="middle"
+                        fontSize={fontSize}
+                        fontWeight={n.depth === 0 ? 500 : 400}
+                        fill={c.text}
+                        fontFamily="'DM Sans', sans-serif"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                      >
+                        {lines.map((line, i) => (
+                          <tspan key={i} x={w / 2} y={startY + i * lineH}>{line}</tspan>
+                        ))}
+                      </text>
+                    );
+                  })()}
                   {n.link && (
                     <g transform={`translate(${w - 6},${6})`} style={{ cursor: 'pointer' }} onMouseDown={e => { e.stopPropagation(); if (n.link!.startsWith('#')) { location.hash = n.link!; } else { window.open(n.link, '_blank', 'noopener'); } }}>
                       <circle r={5.5} fill="#1D9E75" opacity=".15" />

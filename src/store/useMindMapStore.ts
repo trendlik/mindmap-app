@@ -64,11 +64,11 @@ export function colorForDepth(depth: number): NodeColor {
   return COLORS[depth % COLORS.length];
 }
 
-const NODE_MAX_W = 200;
-const NODE_H_PAD = 36; // horizontal padding baked into width
+const NODE_MAX_W = 180;
+const NODE_H_PAD = 32; // horizontal padding (16 left + 16 right)
 const NODE_V_PAD = 16; // total vertical padding (8 top + 8 bottom)
 const NODE_LINE_H = 20; // line height for wrapped text
-const NODE_CHAR_W = 8; // approximate character width at 13-14px
+const NODE_CHAR_W = 7; // approximate character width for DM Sans at 13–14px
 
 /** Split label into lines that fit within maxTextW pixels. */
 export function wrapText(label: string, maxTextW = NODE_MAX_W - NODE_H_PAD): string[] {
