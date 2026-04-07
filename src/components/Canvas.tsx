@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { colorForDepth, measureNode } from '../store/useMindMapStore';
+import { colorForDepth, measureNode, wrapText } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
@@ -854,17 +854,22 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     strokeWidth={(isSel || isMultiSel) ? 2 : 1}
                   />
                   <text
-                    x={w / 2}
-                    y={h / 2 + 1}
                     textAnchor="middle"
-                    dominantBaseline="middle"
+                    dominantBaseline="central"
                     fontSize={n.depth === 0 ? 14 : 13}
                     fontWeight={n.depth === 0 ? 500 : 400}
                     fill={c.text}
                     fontFamily="'DM Sans', sans-serif"
                     style={{ pointerEvents: 'none', userSelect: 'none' }}
                   >
-                    {n.label}
+                    {(() => {
+                      const lines = wrapText(n.label);
+                      const lineH = 20;
+                      return lines.map((line, i) => {
+                        const y = (h - (lines.length - 1) * lineH) / 2 + i * lineH;
+                        return <tspan key={i} x={w / 2} y={y}>{line}</tspan>;
+                      });
+                    })()}
                   </text>
                   {n.link && (
                     <g transform={`translate(${w - 6},${6})`} style={{ cursor: 'pointer' }} onMouseDown={e => { e.stopPropagation(); if (n.link!.startsWith('#')) { location.hash = n.link!; } else { window.open(n.link, '_blank', 'noopener'); } }}>

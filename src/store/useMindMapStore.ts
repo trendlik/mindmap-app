@@ -64,8 +64,42 @@ export function colorForDepth(depth: number): NodeColor {
   return COLORS[depth % COLORS.length];
 }
 
+const NODE_MAX_W = 200;
+const NODE_H_PAD = 36; // horizontal padding baked into width
+const NODE_V_PAD = 16; // total vertical padding (8 top + 8 bottom)
+const NODE_LINE_H = 20; // line height for wrapped text
+const NODE_CHAR_W = 8; // approximate character width at 13-14px
+
+/** Split label into lines that fit within maxTextW pixels. */
+export function wrapText(label: string, maxTextW = NODE_MAX_W - NODE_H_PAD): string[] {
+  const words = label.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (current && test.length * NODE_CHAR_W > maxTextW) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [''];
+}
+
 export function measureNode(label: string): { w: number; h: number } {
-  return { w: Math.max(90, label.length * 8 + 36), h: 36 };
+  const maxTextW = NODE_MAX_W - NODE_H_PAD;
+  const singleW = label.length * NODE_CHAR_W;
+  if (singleW <= maxTextW) {
+    return { w: Math.max(90, singleW + NODE_H_PAD), h: 36 };
+  }
+  const lines = wrapText(label, maxTextW);
+  const maxLineW = Math.max(...lines.map(l => l.length * NODE_CHAR_W));
+  return {
+    w: Math.min(NODE_MAX_W, Math.max(90, maxLineW + NODE_H_PAD)),
+    h: lines.length * NODE_LINE_H + NODE_V_PAD,
+  };
 }
 
 function uid() {

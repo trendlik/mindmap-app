@@ -1,4 +1,4 @@
-import { measureNode } from '../store/useMindMapStore';
+import { measureNode, wrapText } from '../store/useMindMapStore';
 import type { MindMap } from '../store/useMindMapStore';
 
 export function exportJson(map: MindMap) {
@@ -88,9 +88,15 @@ export function exportSvg(map: MindMap) {
     const c = hexColorForDepth(n.depth);
     const fs = n.depth === 0 ? 14 : 13;
     const fw = n.depth === 0 ? 500 : 400;
+    const lines = wrapText(n.label);
+    const lineH = 20;
+    const tspans = lines.map((line, i) => {
+      const y = n.y + (-(lines.length - 1) * lineH / 2) + i * lineH;
+      return `<tspan x="${n.x}" y="${y}">${escapeXml(line)}</tspan>`;
+    }).join('');
     nodeSvg += `<g>
   <rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="8" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1"/>
-  <text x="${n.x}" y="${n.y + 1}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}" font-weight="${fw}" fill="${c.text}" font-family="sans-serif">${escapeXml(n.label)}</text>
+  <text text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="${fw}" fill="${c.text}" font-family="sans-serif">${tspans}</text>
 </g>`;
   });
 
