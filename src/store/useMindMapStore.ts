@@ -117,9 +117,26 @@ function loadLocalState(): MapsRecord | null {
   return null;
 }
 
-function saveLocalState(maps: MapsRecord): void {
+function loadLocalOrder(): string[] | null {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ maps }));
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.mapOrder || null;
+    }
+  } catch (_e) { /* ignore */ }
+  return null;
+}
+
+function saveLocalState(maps: MapsRecord, mapOrder?: string[]): void {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...existing,
+      maps,
+      ...(mapOrder !== undefined ? { mapOrder } : {}),
+    }));
   } catch (_e) { /* ignore */ }
 }
 
@@ -146,6 +163,17 @@ export function useMindMapStore(userId: string | null) {
     return loadLocalState() || defaultMaps();
   });
   const [activeMapId, setActiveMapId] = useState(() => Object.keys(loadLocalState() || defaultMaps())[0]);
+  const [mapOrder, setMapOrder] = useState<string[]>(() => {
+    const stored = loadLocalOrder();
+    const keys = Object.keys(loadLocalState() || defaultMaps());
+    if (stored) {
+      // Keep only IDs that still exist, append any new ones
+      const valid = stored.filter(id => keys.includes(id));
+      const missing = keys.filter(id => !valid.includes(id));
+      return [...valid, ...missing];
+    }
+    return keys;
+  });
   const viewRef = useRef<Record<string, { tx: number; ty: number; scale: number }>>({});
 
   // Undo / redo history (per-map snapshots)
@@ -187,7 +215,14 @@ export function useMindMapStore(userId: string | null) {
         if (Object.keys(remoteMaps).length > 0) {
           // Use Firestore data as source of truth
           setMaps(remoteMaps);
-          saveLocalState(remoteMaps);
+          setMapOrder(prev => {
+            const remoteIds = Object.keys(remoteMaps);
+            const valid = prev.filter(id => remoteIds.includes(id));
+            const missing = remoteIds.filter(id => !valid.includes(id));
+            const newOrder = [...valid, ...missing];
+            saveLocalState(remoteMaps, newOrder);
+            return newOrder;
+          });
           setActiveMapId((prev) => {
             if (remoteMaps[prev]) return prev;
             return Object.keys(remoteMaps)[0];
@@ -199,7 +234,14 @@ export function useMindMapStore(userId: string | null) {
       // Ongoing snapshot updates from other devices
       if (Object.keys(remoteMaps).length > 0) {
         setMaps(remoteMaps);
-        saveLocalState(remoteMaps);
+        setMapOrder(prev => {
+          const remoteIds = Object.keys(remoteMaps);
+          const valid = prev.filter(id => remoteIds.includes(id));
+          const missing = remoteIds.filter(id => !valid.includes(id));
+          const newOrder = [...valid, ...missing];
+          saveLocalState(remoteMaps, newOrder);
+          return newOrder;
+        });
       }
     });
 
@@ -301,10 +343,12 @@ export function useMindMapStore(userId: string | null) {
     };
     setMaps(prev => {
       const next = { ...prev, [mapId]: newMap };
-      saveLocalState(next);
-      if (userId) {
-        saveMapToFirestore(userId, newMap);
-      }
+      setMapOrder(order => {
+        const newOrder = [...order, mapId];
+        saveLocalState(next, newOrder);
+        return newOrder;
+      });
+      if (userId) saveMapToFirestore(userId, newMap);
       return next;
     });
     setActiveMapId(mapId);
@@ -316,16 +360,25 @@ export function useMindMapStore(userId: string | null) {
     if (ids.length <= 1) return;
     const next = { ...currentMaps };
     delete next[mapId];
-    saveLocalState(next);
-    if (userId) {
-      deleteMapFromFirestore(userId, mapId);
-    }
+    setMapOrder(order => {
+      const newOrder = order.filter(id => id !== mapId);
+      saveLocalState(next, newOrder);
+      return newOrder;
+    });
+    if (userId) deleteMapFromFirestore(userId, mapId);
     setMaps(next);
     if (activeMapId === mapId) {
-      const remaining = Object.keys(next);
-      setActiveMapId(remaining[0]);
+      setActiveMapId(Object.keys(next)[0]);
     }
   }, [activeMapId, userId]);
+
+  const reorderMaps = useCallback((newOrder: string[]) => {
+    setMapOrder(newOrder);
+    setMaps(prev => {
+      saveLocalState(prev, newOrder);
+      return prev;
+    });
+  }, []);
 
   const renameMap = useCallback((mapId: string, name: string) => {
     updateMapWithUndo(mapId, m => ({ ...m, name }));
@@ -472,9 +525,11 @@ export function useMindMapStore(userId: string | null) {
   return {
     maps,
     activeMapId,
+    mapOrder,
     createMap,
     deleteMap,
     renameMap,
+    reorderMaps,
     switchMap,
     saveView,
     addNode,

@@ -13,9 +13,11 @@ export default function App() {
   const {
     maps,
     activeMapId,
+    mapOrder,
     createMap,
     deleteMap,
     renameMap,
+    reorderMaps,
     switchMap,
     saveView,
     addNode,
@@ -82,11 +84,13 @@ export default function App() {
         <div className={`${styles.sidebarWrap} ${!sidebarOpen ? styles.sidebarCollapsed : ''}`}>
           <Sidebar
             maps={maps}
+            mapOrder={mapOrder}
             activeMapId={activeMapId}
             onSelect={handleSelectMap}
             onCreate={createMap}
             onDelete={deleteMap}
             onRename={renameMap}
+            onReorder={reorderMaps}
             user={user}
             onSignOut={signOut}
           />

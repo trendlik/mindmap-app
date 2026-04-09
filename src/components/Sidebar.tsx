@@ -8,16 +8,18 @@ const MAX_WIDTH = 400;
 
 interface SidebarProps {
   maps: Record<string, MindMap>;
+  mapOrder: string[];
   activeMapId: string;
   onSelect: (mapId: string) => void;
   onCreate: (name?: string) => void;
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
   onRename: (mapId: string, name: string) => void;
+  onReorder: (newOrder: string[]) => void;
   user: User | null;
   onSignOut: () => void;
 }
 
-export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelete, onRename, user, onSignOut }: SidebarProps) {
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onReorder, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
@@ -25,6 +27,10 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+
+  // Drag & drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -88,46 +94,86 @@ export default function Sidebar({ maps, activeMapId, onSelect, onCreate, onDelet
       </div>
 
       <nav className={styles.list}>
-        {Object.values(maps).map(m => (
-          <div
-            key={m.id}
-            className={`${styles.item} ${m.id === activeMapId ? styles.active : ''}`}
-            onClick={() => onSelect(m.id)}
-            onDoubleClick={() => startRename(m.id, m.name)}
-          >
-            <div className={styles.dot} />
-            {editingId === m.id ? (
-              <input
-                ref={inputRef}
-                className={styles.renameInput}
-                value={editValue}
-                onChange={e => setEditValue(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitRename();
-                  if (e.key === 'Escape') setEditingId(null);
+        {mapOrder.filter(id => maps[id]).map((id, index) => {
+          const m = maps[id];
+          const isDragged = draggedId === id;
+          return (
+            <div key={id} className={styles.itemWrap}>
+              {dropIndex === index && draggedId !== id && (
+                <div className={styles.dropLine} />
+              )}
+              <div
+                className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''}`}
+                draggable={editingId !== id}
+                onClick={() => onSelect(id)}
+                onDoubleClick={() => startRename(id, m.name)}
+                onDragStart={e => {
+                  setDraggedId(id);
+                  e.dataTransfer.effectAllowed = 'move';
                 }}
-                onClick={e => e.stopPropagation()}
-              />
-            ) : (
-              <span className={styles.name} title={m.name}>{m.name}</span>
-            )}
-            {Object.keys(maps).length > 1 && (
-              <button
-                className={styles.delBtn}
-                onClick={e => {
-                  e.stopPropagation();
-                  if (window.confirm(`Delete "${m.name}"?`)) onDelete(m.id, maps);
+                onDragEnd={() => {
+                  setDraggedId(null);
+                  setDropIndex(null);
                 }}
-                title="Delete map"
+                onDragOver={e => {
+                  e.preventDefault();
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  const mid = rect.top + rect.height / 2;
+                  setDropIndex(e.clientY < mid ? index : index + 1);
+                }}
+                onDrop={e => {
+                  e.preventDefault();
+                  if (!draggedId || draggedId === id) return;
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  const mid = rect.top + rect.height / 2;
+                  const insertAt = e.clientY < mid ? index : index + 1;
+                  const newOrder = mapOrder.filter(oid => oid !== draggedId);
+                  const draggedOrigIndex = mapOrder.indexOf(draggedId);
+                  const adjustedInsert = insertAt > draggedOrigIndex ? insertAt - 1 : insertAt;
+                  newOrder.splice(adjustedInsert, 0, draggedId);
+                  onReorder(newOrder);
+                  setDraggedId(null);
+                  setDropIndex(null);
+                }}
               >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-            )}
-          </div>
-        ))}
+                <div className={styles.dot} />
+                {editingId === id ? (
+                  <input
+                    ref={inputRef}
+                    className={styles.renameInput}
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') setEditingId(null);
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className={styles.name} title={m.name}>{m.name}</span>
+                )}
+                {Object.keys(maps).length > 1 && (
+                  <button
+                    className={styles.delBtn}
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (window.confirm(`Delete "${m.name}"?`)) onDelete(id, maps);
+                    }}
+                    title="Delete map"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {dropIndex === mapOrder.length && draggedId && (
+          <div className={styles.dropLine} />
+        )}
       </nav>
 
       <div className={styles.footer}>

@@ -51,6 +51,19 @@
   gap: 2px;
 }
 
+.itemWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropLine {
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  margin: 1px 4px;
+  pointer-events: none;
+}
+
 .item {
   display: flex;
   align-items: center;
@@ -61,6 +74,10 @@
   border: 1px solid transparent;
   transition: background 0.1s;
   min-width: 0;
+}
+
+.item.dragging {
+  opacity: 0.4;
 }
 
 .item:hover {
