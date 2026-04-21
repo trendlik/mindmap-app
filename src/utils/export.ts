@@ -1,4 +1,4 @@
-import { measureNode, wrapText } from '../store/useMindMapStore';
+import { measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap } from '../store/useMindMapStore';
 
 export function exportJson(map: MindMap) {
@@ -61,8 +61,8 @@ export function exportSvg(map: MindMap) {
     const a = map.nodes[e.from];
     const b = map.nodes[e.to];
     if (!a || !b) return;
-    const { h: ah } = measureNode(a.label);
-    const { h: bh } = measureNode(b.label);
+    const { h: ah } = measureNode(a.label, !!a.icon);
+    const { h: bh } = measureNode(b.label, !!b.icon);
     const ay = a.y + ah / 2;
     const by = b.y - bh / 2;
     const my = (ay + by) / 2;
@@ -84,19 +84,23 @@ export function exportSvg(map: MindMap) {
 
   let nodeSvg = '';
   nodes.forEach(n => {
-    const { w, h } = measureNode(n.label);
+    const { w, h } = measureNode(n.label, !!n.icon);
     const c = hexColorForDepth(n.depth);
     const fs = n.depth === 0 ? 14 : 13;
     const fw = n.depth === 0 ? 500 : 400;
     const lines = wrapText(n.label);
     const lineH = 20;
+    const textX = n.icon ? n.x - w / 2 + ICON_W + (w - ICON_W) / 2 : n.x;
     const tspans = lines.map((line, i) => {
       const y = n.y + (-(lines.length - 1) * lineH / 2) + i * lineH;
-      return `<tspan x="${n.x}" y="${y}">${escapeXml(line)}</tspan>`;
+      return `<tspan x="${textX}" y="${y}">${escapeXml(line)}</tspan>`;
     }).join('');
+    const iconSvg = n.icon
+      ? `<text x="${n.x - w / 2 + 10}" y="${n.y}" dominant-baseline="middle" font-size="14">${n.icon}</text>`
+      : '';
     nodeSvg += `<g>
   <rect x="${n.x - w / 2}" y="${n.y - h / 2}" width="${w}" height="${h}" rx="8" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1"/>
-  <text text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="${fw}" fill="${c.text}" font-family="sans-serif">${tspans}</text>
+  <text text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="${fw}" fill="${c.text}" font-family="sans-serif">${tspans}</text>${iconSvg}
 </g>`;
   });
 

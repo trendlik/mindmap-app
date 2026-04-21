@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { colorForDepth, measureNode, wrapText } from '../store/useMindMapStore';
+import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
@@ -189,7 +189,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nodes = map ? Object.values(map.nodes) : [];
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      const m = measureNode(n.label);
+      const m = measureNode(n.label, !!n.icon);
       if (w.x >= n.x - m.w / 2 && w.x <= n.x + m.w / 2 && w.y >= n.y - m.h / 2 && w.y <= n.y + m.h / 2) {
         return n.id;
       }
@@ -458,7 +458,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (lastTapRef.current.nodeId === nodeId && now - lastTapRef.current.time < 350) {
           // Double-tap → edit
           touchDragRef.current = null;
-          const { w: nw, h: nh } = measureNode(n.label);
+          const { w: nw, h: nh } = measureNode(n.label, !!n.icon);
           const sx = (n.x - nw / 2) * scale + tx;
           const sy = (n.y - nh / 2) * scale + ty;
           setEditingId(nodeId);
@@ -543,7 +543,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     e.stopPropagation();
     if (linkingFrom) return;
     const n = map!.nodes[nodeId];
-    const { w, h } = measureNode(n.label);
+    const { w, h } = measureNode(n.label, !!n.icon);
     const sx = (n.x - w / 2) * scale + tx;
     const sy = (n.y - h / 2) * scale + ty;
     setEditingId(nodeId);
@@ -720,8 +720,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               const a = map.nodes[e.from];
               const b = map.nodes[e.to];
               if (!a || !b) return null;
-              const { h: ah } = measureNode(a.label);
-              const { h: bh } = measureNode(b.label);
+              const { h: ah } = measureNode(a.label, !!a.icon);
+              const { h: bh } = measureNode(b.label, !!b.icon);
               const ax = a.x, ay = a.y + ah / 2;
               const bx = b.x, by = b.y - bh / 2;
               const my = (ay + by) / 2;
@@ -751,8 +751,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               const markerEnd = hasArrowTo ? (isSel ? 'url(#arrowhead-sel)' : 'url(#arrowhead)') : undefined;
               const markerStart = hasArrowFrom ? (isSel ? 'url(#arrowhead-start-sel)' : 'url(#arrowhead-start)') : undefined;
               // Compute edge points so arrows aren't hidden behind nodes
-              const aSize = measureNode(a.label);
-              const bSize = measureNode(b.label);
+              const aSize = measureNode(a.label, !!a.icon);
+              const bSize = measureNode(b.label, !!b.icon);
               const aEdge = rectEdgePoint(a.x, a.y, aSize.w, aSize.h, b.x, b.y);
               const bEdge = rectEdgePoint(b.x, b.y, bSize.w, bSize.h, a.x, a.y);
               // Quadratic Bézier: control point offset perpendicular to the line
@@ -832,7 +832,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           {/* Nodes */}
           <g>
             {nodes.map(n => {
-              const { w, h } = measureNode(n.label);
+              const { w, h } = measureNode(n.label, !!n.icon);
               const c = colorForDepth(n.depth);
               const isSel = n.id === selectedId;
               const isMultiSel = multiSelected.has(n.id);
@@ -853,6 +853,17 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     stroke={(isSel || isMultiSel) ? '#1D9E75' : c.stroke}
                     strokeWidth={(isSel || isMultiSel) ? 2 : 1}
                   />
+                  {n.icon && (
+                    <text
+                      x={10}
+                      y={h / 2}
+                      dominantBaseline="middle"
+                      fontSize={14}
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      {n.icon}
+                    </text>
+                  )}
                   {(() => {
                     const lines = wrapText(n.label);
                     const lineH = 20;
@@ -862,6 +873,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                     // whole block is centered.
                     const blockH = lines.length * lineH;
                     const startY = (h - blockH) / 2 + lineH * 0.78; // 0.78 ≈ ascender ratio
+                    // When icon present, center text in the portion of the rect to the right of the icon
+                    const textX = n.icon ? ICON_W + (w - ICON_W) / 2 : w / 2;
                     return (
                       <text
                         textAnchor="middle"
@@ -872,7 +885,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                         style={{ pointerEvents: 'none', userSelect: 'none' }}
                       >
                         {lines.map((line, i) => (
-                          <tspan key={i} x={w / 2} y={startY + i * lineH}>{line}</tspan>
+                          <tspan key={i} x={textX} y={startY + i * lineH}>{line}</tspan>
                         ))}
                       </text>
                     );
@@ -988,8 +1001,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           nodeLabel={map.nodes[notesNodeId].label}
           notes={map.nodes[notesNodeId].notes || ''}
           link={map.nodes[notesNodeId].link || ''}
+          icon={map.nodes[notesNodeId].icon || ''}
           onChange={(notes) => onUpdateNode(map.id, notesNodeId, { notes })}
           onChangeLink={(link) => onUpdateNode(map.id, notesNodeId, { link })}
+          onChangeIcon={(icon) => onUpdateNode(map.id, notesNodeId, { icon })}
           onClose={() => setNotesOpen(false)}
         />
       )}

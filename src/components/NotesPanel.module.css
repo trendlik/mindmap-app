@@ -54,6 +54,108 @@
   background: var(--bg-hover);
 }
 
+.iconRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  position: relative;
+}
+
+.iconTrigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  flex: 1;
+  min-width: 0;
+}
+
+.iconTrigger:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.iconTriggerActive {
+  color: var(--text-primary);
+}
+
+.iconEmoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.iconTriggerLabel {
+  font-size: 12px;
+}
+
+.iconRemove {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+
+.iconRemove:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.emojiPicker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 14px;
+  z-index: 10;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  display: grid;
+  grid-template-columns: repeat(8, 28px);
+  gap: 2px;
+  padding: 8px;
+}
+
+.emojiBtn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.emojiBtn:hover {
+  background: var(--bg-hover);
+}
+
+.emojiBtnActive {
+  background: var(--bg-hover);
+  outline: 1px solid #1D9E75;
+}
+
 .linkRow {
   display: flex;
   align-items: center;

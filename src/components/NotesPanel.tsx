@@ -1,12 +1,20 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import styles from './NotesPanel.module.css';
+
+const EMOJIS = [
+  '💡', '🔥', '⭐', '✅', '❌', '⚠️', '🔑', '📌',
+  '🎯', '💰', '📝', '🚀', '❓', '💬', '📊', '🏆',
+  '⏰', '🔎', '📁', '🎨', '⚡', '🌟', '🔔', '💎',
+];
 
 interface NotesPanelProps {
   nodeLabel: string;
   notes: string;
   link: string;
+  icon: string;
   onChange: (notes: string) => void;
   onChangeLink: (link: string) => void;
+  onChangeIcon: (icon: string) => void;
   onClose: () => void;
 }
 
@@ -47,9 +55,10 @@ function FmtBtn({ command, title, children }: FmtBtnProps) {
   );
 }
 
-export default function NotesPanel({ nodeLabel, notes, link, onChange, onChangeLink, onClose }: NotesPanelProps) {
+export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onChangeLink, onChangeIcon, onClose }: NotesPanelProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalUpdate = useRef(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Sync external notes prop → editor HTML (only when the prop changes from outside)
   useEffect(() => {
@@ -89,6 +98,46 @@ export default function NotesPanel({ nodeLabel, notes, link, onChange, onChangeL
             <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
         </button>
+      </div>
+      <div className={styles.iconRow}>
+        <button
+          className={`${styles.iconTrigger} ${icon ? styles.iconTriggerActive : ''}`}
+          onClick={() => setPickerOpen(v => !v)}
+          title={icon ? 'Change or remove icon' : 'Add icon'}
+        >
+          {icon ? <span className={styles.iconEmoji}>{icon}</span> : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M6 4v4M4 6h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          )}
+          <span className={styles.iconTriggerLabel}>{icon ? 'Icon' : 'Add icon'}</span>
+        </button>
+        {icon && (
+          <button
+            className={styles.iconRemove}
+            onClick={() => { onChangeIcon(''); setPickerOpen(false); }}
+            title="Remove icon"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
+        {pickerOpen && (
+          <div className={styles.emojiPicker}>
+            {EMOJIS.map(e => (
+              <button
+                key={e}
+                className={`${styles.emojiBtn} ${e === icon ? styles.emojiBtnActive : ''}`}
+                onClick={() => { onChangeIcon(e === icon ? '' : e); setPickerOpen(false); }}
+                title={e}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className={styles.linkRow}>
         <svg className={styles.linkIcon} width="12" height="12" viewBox="0 0 12 12" fill="none">

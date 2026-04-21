@@ -15,6 +15,7 @@ export interface MindMapNode {
   notes?: string;
   link?: string;
   collapsed?: boolean;
+  icon?: string;
 }
 
 export interface Edge {
@@ -69,6 +70,7 @@ const NODE_H_PAD = 32; // horizontal padding (16 left + 16 right)
 const NODE_V_PAD = 16; // total vertical padding (8 top + 8 bottom)
 const NODE_LINE_H = 20; // line height for wrapped text
 const NODE_CHAR_W = 7; // approximate character width for DM Sans at 13–14px
+export const ICON_W = 20; // extra left padding when a node has an icon
 
 /** Split label into lines that fit within maxTextW pixels. */
 export function wrapText(label: string, maxTextW = NODE_MAX_W - NODE_H_PAD): string[] {
@@ -88,16 +90,17 @@ export function wrapText(label: string, maxTextW = NODE_MAX_W - NODE_H_PAD): str
   return lines.length ? lines : [''];
 }
 
-export function measureNode(label: string): { w: number; h: number } {
+export function measureNode(label: string, hasIcon = false): { w: number; h: number } {
+  const iconW = hasIcon ? ICON_W : 0;
   const maxTextW = NODE_MAX_W - NODE_H_PAD;
   const singleW = label.length * NODE_CHAR_W;
   if (singleW <= maxTextW) {
-    return { w: Math.max(90, singleW + NODE_H_PAD), h: 36 };
+    return { w: Math.max(90, singleW + NODE_H_PAD) + iconW, h: 36 };
   }
   const lines = wrapText(label, maxTextW);
   const maxLineW = Math.max(...lines.map(l => l.length * NODE_CHAR_W));
   return {
-    w: Math.min(NODE_MAX_W, Math.max(90, maxLineW + NODE_H_PAD)),
+    w: Math.min(NODE_MAX_W, Math.max(90, maxLineW + NODE_H_PAD)) + iconW,
     h: lines.length * NODE_LINE_H + NODE_V_PAD,
   };
 }
