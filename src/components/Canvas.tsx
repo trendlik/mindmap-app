@@ -123,6 +123,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const redoRef = useRef(onRedo);
   const multiSelectedRef = useRef(multiSelected);
   const toggleCollapseRef = useRef<() => void>(() => {});
+  const addChildRef = useRef<() => void>(() => {});
+  const addSiblingRef = useRef<() => void>(() => {});
+  const startLinkingRef = useRef<() => void>(() => {});
   const mapIdRef = useRef(map?.id);
 
   useEffect(() => {
@@ -372,6 +375,19 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
         redoRef.current();
+      }
+      if (!editingIdRef.current && !isEditable) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          addChildRef.current();
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addSiblingRef.current();
+        }
+        if (e.key === 'l' || e.key === 'L') {
+          startLinkingRef.current();
+        }
       }
     }
     window.addEventListener('mousemove', onMouseMove);
@@ -630,6 +646,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   redoRef.current = onRedo;
   multiSelectedRef.current = multiSelected;
   toggleCollapseRef.current = toggleCollapse;
+  addChildRef.current = addChild;
+  addSiblingRef.current = addSibling;
+  startLinkingRef.current = startLinking;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
