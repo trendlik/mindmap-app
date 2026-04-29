@@ -381,7 +381,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           e.preventDefault();
           addChildRef.current();
         }
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && e.shiftKey) {
           e.preventDefault();
           addSiblingRef.current();
         }
@@ -960,8 +960,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           onChange={e => setEditValue(e.target.value)}
           onBlur={finishEdit}
           onKeyDown={e => {
-            if (e.key === 'Enter') finishEdit();
-            if (e.key === 'Escape') setEditingId(null);
+            if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
+            else if (e.key === 'Enter') finishEdit();
+            else if (e.key === 'Escape') setEditingId(null);
           }}
         />
       )}
