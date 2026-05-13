@@ -27,6 +27,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drag & drop state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -105,8 +106,14 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
               <div
                 className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''}`}
                 draggable={editingId !== id}
-                onClick={() => onSelect(id)}
-                onDoubleClick={() => startRename(id, m.name)}
+                onClick={() => {
+                  if (clickTimer.current) clearTimeout(clickTimer.current);
+                  clickTimer.current = setTimeout(() => onSelect(id), 220);
+                }}
+                onDoubleClick={() => {
+                  if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
+                  startRename(id, m.name);
+                }}
                 onDragStart={e => {
                   setDraggedId(id);
                   e.dataTransfer.effectAllowed = 'move';

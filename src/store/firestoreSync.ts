@@ -15,10 +15,13 @@ function mapsCollection(uid: string) {
   return collection(db, 'users', uid, 'maps');
 }
 
+const isTestMode = () => !!window.__PLAYWRIGHT_TEST_USER__;
+
 export function subscribeToMaps(
   uid: string,
   callback: (maps: MapsRecord) => void,
 ): Unsubscribe {
+  if (isTestMode()) return () => {};
   return onSnapshot(mapsCollection(uid), (snapshot) => {
     const maps: MapsRecord = {};
     snapshot.forEach((d) => {
@@ -30,16 +33,19 @@ export function subscribeToMaps(
 }
 
 export async function saveMapToFirestore(uid: string, map: MindMap): Promise<void> {
+  if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'maps', map.id);
   await setDoc(ref, map);
 }
 
 export async function deleteMapFromFirestore(uid: string, mapId: string): Promise<void> {
+  if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'maps', mapId);
   await deleteDoc(ref);
 }
 
 export async function saveAllMapsToFirestore(uid: string, maps: MapsRecord): Promise<void> {
+  if (isTestMode()) return;
   const promises = Object.values(maps).map((m) => saveMapToFirestore(uid, m));
   await Promise.all(promises);
 }

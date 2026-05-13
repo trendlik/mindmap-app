@@ -21,10 +21,12 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const testUser = window.__PLAYWRIGHT_TEST_USER__;
+  const [user, setUser] = useState<User | null>(testUser ? (testUser as unknown as User) : null);
+  const [loading, setLoading] = useState(!testUser);
 
   useEffect(() => {
+    if (testUser) return;
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
