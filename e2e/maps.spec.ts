@@ -57,3 +57,26 @@ test('deletes a map when there are multiple maps', async ({ page }) => {
 test('delete button is absent when only one map exists', async ({ page }) => {
   await expect(page.locator('aside').getByTitle('Delete map')).not.toBeAttached();
 });
+
+test('sidebar stays open after map select on wide screens', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  page.on('dialog', (dialog) => dialog.accept('Map B'));
+  await page.getByTitle('New map').click();
+  await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
+
+  await page.locator('aside nav').getByText('my first map').click();
+
+  await expect(page.locator('aside').getByText('my first map')).toBeVisible();
+});
+
+test('sidebar closes after map select on narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  page.on('dialog', (dialog) => dialog.accept('Map B'));
+  await page.getByTitle('New map').click();
+  await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
+
+  await page.locator('aside nav').getByText('my first map').click();
+
+  // On narrow screens the sidebar closes — the overlay is removed from the DOM
+  await expect(page.locator('[class*="overlay"]')).not.toBeAttached();
+});

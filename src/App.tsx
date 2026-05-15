@@ -66,7 +66,7 @@ export default function App() {
 
   const handleSelectMap = useCallback((mapId: string) => {
     switchMap(mapId);
-    setSidebarOpen(false);
+    if (window.innerWidth <= 640) setSidebarOpen(false);
   }, [switchMap]);
 
   return (
