@@ -270,7 +270,44 @@ test('clicking a node hit row on a different map — switches active map', async
   expect(combined.toLowerCase()).toContain('work');
 });
 
-// ─── 7. label: prefix still works (regression) ───────────────────────────────
+// ─── 7. Keyboard navigation (↑/↓/Enter) ─────────────────────────────────────
+
+test('ArrowDown + Enter selects a map from the result list', async ({ page }) => {
+  // Type a query that matches only "Work Notes" by name so the first (and only)
+  // result item is the map row for Work Notes.
+  await searchInput(page).fill('work');
+
+  // Project Alpha is currently active; Work Notes map should be the first result item.
+  // Press ArrowDown once to move focus to index 0 (the "Work Notes" map row).
+  await searchInput(page).press('ArrowDown');
+
+  // Press Enter — should activate the Work Notes map.
+  await searchInput(page).press('Enter');
+
+  // After activation the Work Notes map becomes active; its root node text should
+  // appear on the canvas.
+  await expect(page.locator('[data-node-id]')).toBeVisible();
+  const nodeTexts = await page.locator('[data-node-id] text').allTextContents();
+  expect(nodeTexts.join(' ').toLowerCase()).toContain('work');
+});
+
+test('ArrowDown navigates through map + node hit rows and Enter activates node hit', async ({ page }) => {
+  // "budget" matches Project Alpha by node label — produces one map row + one node-hit row.
+  await searchInput(page).fill('budget');
+
+  // Index 0 → map row "Project Alpha"
+  // Index 1 → node-hit row "budget review"
+  // Press ArrowDown twice to reach the node-hit row.
+  await searchInput(page).press('ArrowDown');
+  await searchInput(page).press('ArrowDown');
+
+  // Press Enter — should focus the node (canvas highlight ring should appear).
+  await searchInput(page).press('Enter');
+
+  await expect(page.locator('svg rect[stroke="#F39C12"], svg rect[stroke="#1D9E75"]')).toBeVisible();
+});
+
+// ─── 8. label: prefix still works (regression) ───────────────────────────────
 
 test('label:work — shows only maps with the work label', async ({ page }) => {
   await searchInput(page).fill('label:work');
@@ -297,7 +334,7 @@ test('label: prefix — does not produce node hit rows', async ({ page }) => {
   await expect(page.locator('aside').getByText('budget review', { exact: true })).not.toBeVisible();
 });
 
-// ─── 8. Escape key clears the search query ───────────────────────────────────
+// ─── 9. Escape key clears the search query ───────────────────────────────────
 
 test('pressing Escape clears the search and restores all maps', async ({ page }) => {
   await searchInput(page).fill('alpha');

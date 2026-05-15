@@ -85,7 +85,7 @@ function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: strin
 /** Returns node hits per map (max 3 per map) for queries that should show node results. */
 function computeNodeHits(
   maps: Record<string, MindMap>,
-  mapOrder: string[],
+  filteredIds: string[],
   q: string
 ): Record<string, NodeHit[]> {
   if (!q) return {};
@@ -97,7 +97,7 @@ function computeNodeHits(
   const term = nodeMatch ? nodeMatch[1].trim().toLowerCase() : q.toLowerCase();
 
   const result: Record<string, NodeHit[]> = {};
-  for (const id of mapOrder) {
+  for (const id of filteredIds) {
     const map = maps[id];
     if (!map || map.archived) continue;
     const hits: NodeHit[] = [];
@@ -110,7 +110,9 @@ function computeNodeHits(
         if (!labelLower.includes(term) && notesLower.includes(term)) {
           const idx = notesLower.indexOf(term);
           const start = Math.max(0, idx - 20);
-          snippet = (start > 0 ? '…' : '') + (n.notes ?? '').slice(start, idx + term.length + 30).trimEnd() + '…';
+          const end = idx + term.length + 30;
+          const trailingEllipsis = end < (n.notes ?? '').length ? '…' : '';
+          snippet = (start > 0 ? '…' : '') + (n.notes ?? '').slice(start, end).trimEnd() + trailingEllipsis;
         }
         hits.push({ nodeId: n.id, text: snippet });
         if (hits.length >= 3) break;
@@ -131,7 +133,6 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const [labelInput, setLabelInput] = useState('');
   const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -217,7 +218,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   }, [q, onHighlightQueryChange]);
 
   const filteredIds = applySearch(maps, mapOrder, q);
-  const nodeHits = computeNodeHits(maps, mapOrder, q);
+  const nodeHits = computeNodeHits(maps, filteredIds, q);
   const archivedIds = mapOrder.filter(id => maps[id]?.archived);
 
   // Build a flat ordered list of focusable result items for keyboard nav:
@@ -249,7 +250,6 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
 
       <div className={styles.searchWrap}>
         <input
-          ref={searchInputRef}
           className={styles.searchInput}
           placeholder="Search maps, nodes… or label:tag"
           value={searchQuery}
@@ -286,13 +286,15 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
         {filteredIds.map((id, index) => {
           const m = maps[id];
           const isDragged = draggedId === id;
+          const mapResultIndex = resultItems.findIndex(r => r.type === 'map' && r.mapId === id);
+          const isMapFocused = focusedResultIndex === mapResultIndex && mapResultIndex >= 0;
           return (
             <div key={id} className={styles.itemWrap}>
               {dropIndex === index && draggedId !== id && (
                 <div className={styles.dropLine} />
               )}
               <div
-                className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''}`}
+                className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''} ${isMapFocused ? styles.itemFocused : ''}`}
                 draggable={editingId !== id}
                 onClick={() => {
                   if (clickTimer.current) clearTimeout(clickTimer.current);
