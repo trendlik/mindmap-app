@@ -15,14 +15,65 @@ interface SidebarProps {
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
   onRename: (mapId: string, name: string) => void;
   onReorder: (newOrder: string[]) => void;
+  onSetArchived: (mapId: string, archived: boolean) => void;
   user: User | null;
   onSignOut: () => void;
 }
 
-export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onReorder, user, onSignOut }: SidebarProps) {
+function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: string): string[] {
+  const ids = mapOrder.filter(id => maps[id]);
+
+  if (!q) {
+    return ids.filter(id => !maps[id].archived);
+  }
+
+  const labelMatch = q.match(/^label:(.+)$/i);
+  if (labelMatch) {
+    const expr = labelMatch[1].trim();
+
+    // Special case: label:archived shows only archived maps
+    if (expr.toLowerCase() === 'archived') {
+      return ids.filter(id => maps[id].archived === true);
+    }
+
+    // OR syntax: label:A|B
+    if (expr.includes('|')) {
+      const terms = expr.split('|').map(t => t.trim().toLowerCase()).filter(Boolean);
+      return ids.filter(id => {
+        if (maps[id].archived) return false;
+        const lbls = (maps[id].labels || []).map(l => l.toLowerCase());
+        return terms.some(t => lbls.includes(t));
+      });
+    }
+
+    // AND syntax: label:A+B
+    if (expr.includes('+')) {
+      const terms = expr.split('+').map(t => t.trim().toLowerCase()).filter(Boolean);
+      return ids.filter(id => {
+        if (maps[id].archived) return false;
+        const lbls = (maps[id].labels || []).map(l => l.toLowerCase());
+        return terms.every(t => lbls.includes(t));
+      });
+    }
+
+    // Single label
+    const term = expr.toLowerCase();
+    return ids.filter(id => {
+      if (maps[id].archived) return false;
+      return (maps[id].labels || []).map(l => l.toLowerCase()).includes(term);
+    });
+  }
+
+  // Plain text search — exclude archived
+  return ids.filter(id => maps[id].name.toLowerCase().includes(q) && !maps[id].archived);
+}
+
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onReorder, onSetArchived, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -83,6 +134,9 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     if (name !== null) onCreate(name.trim() || 'new map');
   }
 
+  const filteredIds = applySearch(maps, mapOrder, searchQuery.toLowerCase().trim());
+  const archivedIds = mapOrder.filter(id => maps[id]?.archived);
+
   return (
     <aside className={styles.sidebar} style={{ width, minWidth: width }}>
       <div className={styles.header}>
@@ -95,7 +149,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
       </div>
 
       <nav className={styles.list}>
-        {mapOrder.filter(id => maps[id]).map((id, index) => {
+        {filteredIds.map((id, index) => {
           const m = maps[id];
           const isDragged = draggedId === id;
           return (
@@ -160,6 +214,20 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                 ) : (
                   <span className={styles.name} title={m.name}>{m.name}</span>
                 )}
+                <button
+                  className={styles.archiveBtn}
+                  title="Archive map"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onSetArchived(id, true);
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <rect x="1" y="1" width="10" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                    <path d="M2 4v6.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V4" stroke="currentColor" strokeWidth="1.2"/>
+                    <path d="M4.5 6.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                  </svg>
+                </button>
                 {Object.keys(maps).length > 1 && (
                   <button
                     className={styles.delBtn}
@@ -183,6 +251,45 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
         )}
       </nav>
 
+      {archivedIds.length > 0 && (
+        <div className={styles.archivedSection}>
+          <button
+            className={styles.archivedHeader}
+            onClick={() => setArchivedOpen(v => !v)}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+              style={{ transform: archivedOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+              <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Archived ({archivedIds.length})</span>
+          </button>
+          {archivedOpen && (
+            <div className={styles.archivedList}>
+              {archivedIds.map(id => {
+                const m = maps[id];
+                return (
+                  <div key={id} className={styles.archivedItem}>
+                    <div className={styles.dot} />
+                    <span className={styles.name} title={m.name}>{m.name}</span>
+                    <button
+                      className={styles.restoreBtn}
+                      title="Unarchive map"
+                      onClick={e => { e.stopPropagation(); onSetArchived(id, false); }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <rect x="1" y="1" width="10" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M2 4v6.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V4" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M5 8.5V6M5 6l-1.5 1.5M5 6l1.5 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={styles.footer}>
         {user && (
           <div className={styles.userRow}>
@@ -197,7 +304,18 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
             </button>
           </div>
         )}
-        <span className={styles.footerText}>{Object.keys(maps).length} map{Object.keys(maps).length !== 1 ? 's' : ''}</span>
+        <span className={styles.footerText}>
+          {(() => {
+            const total = Object.keys(maps).length;
+            const archivedCount = Object.values(maps).filter(m => m.archived).length;
+            return (
+              <>
+                {total} map{total !== 1 ? 's' : ''}
+                {archivedCount > 0 && <> ({archivedCount} archived)</>}
+              </>
+            );
+          })()}
+        </span>
       </div>
       <div className={styles.resizeHandle} onMouseDown={startResize} />
     </aside>

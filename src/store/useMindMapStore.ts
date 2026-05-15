@@ -43,6 +43,8 @@ export interface MindMap {
   tx: number;
   ty: number;
   scale: number;
+  labels?: string[];
+  archived?: boolean;
 }
 
 export type MapsRecord = Record<string, MindMap>;
@@ -525,6 +527,10 @@ export function useMindMapStore(userId: string | null) {
     }));
   }, [updateMapWithUndo]);
 
+  const setMapArchived = useCallback((mapId: string, archived: boolean) => {
+    updateMap(mapId, m => ({ ...m, archived }));
+  }, [updateMap]);
+
   return {
     maps,
     activeMapId,
@@ -542,6 +548,7 @@ export function useMindMapStore(userId: string | null) {
     addLink,
     updateLink,
     deleteLink,
+    setMapArchived,
     applyAutoLayout,
     undo,
     redo,

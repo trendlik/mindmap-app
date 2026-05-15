@@ -27,6 +27,7 @@ export default function App() {
     addLink,
     updateLink,
     deleteLink,
+    setMapArchived,
     applyAutoLayout,
     undo,
     redo,
@@ -91,6 +92,7 @@ export default function App() {
             onDelete={deleteMap}
             onRename={renameMap}
             onReorder={reorderMaps}
+            onSetArchived={(mapId, archived) => setMapArchived(mapId, archived)}
             user={user}
             onSignOut={signOut}
           />
