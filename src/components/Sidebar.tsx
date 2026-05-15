@@ -61,6 +61,8 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const onWidthChangeRef = useRef(onWidthChange);
+  onWidthChangeRef.current = onWidthChange;
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drag & drop state
@@ -89,7 +91,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     const delta = e.clientX - startX.current;
     const newW = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
     setWidth(newW);
-    onWidthChange?.(newW);
+    onWidthChangeRef.current?.(newW);
   }, []);
 
   const onMouseUp = useCallback(() => {
