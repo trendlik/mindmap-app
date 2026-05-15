@@ -200,9 +200,18 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   const mid = rect.top + rect.height / 2;
                   const insertAt = e.clientY < mid ? index : index + 1;
                   const newOrder = mapOrder.filter(oid => oid !== draggedId);
-                  const draggedOrigIndex = mapOrder.indexOf(draggedId);
-                  const adjustedInsert = insertAt > draggedOrigIndex ? insertAt - 1 : insertAt;
-                  newOrder.splice(adjustedInsert, 0, draggedId);
+                  // Convert filteredIds insertion index → mapOrder position.
+                  // filteredIds[insertAt] is the item that should follow the dropped card.
+                  // If it's the dragged card itself or past the end, insert after the last active item.
+                  const anchorId = insertAt < filteredIds.length ? filteredIds[insertAt] : null;
+                  let targetIndex: number;
+                  if (anchorId != null && anchorId !== draggedId) {
+                    targetIndex = newOrder.indexOf(anchorId);
+                  } else {
+                    const lastActiveId = filteredIds.slice().reverse().find(fid => fid !== draggedId);
+                    targetIndex = lastActiveId != null ? newOrder.indexOf(lastActiveId) + 1 : newOrder.length;
+                  }
+                  newOrder.splice(targetIndex, 0, draggedId);
                   onReorder(newOrder);
                   setDraggedId(null);
                   setDropIndex(null);
@@ -257,7 +266,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
             </div>
           );
         })}
-        {dropIndex === mapOrder.length && draggedId && (
+        {dropIndex === filteredIds.length && draggedId && (
           <div className={styles.dropLine} />
         )}
       </nav>
