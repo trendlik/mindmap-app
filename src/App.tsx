@@ -10,6 +10,7 @@ import styles from './App.module.css';
 export default function App() {
   const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(210);
   const {
     maps,
     activeMapId,
@@ -83,7 +84,10 @@ export default function App() {
           </svg>
         </button>
         {sidebarOpen && <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />}
-        <div className={`${styles.sidebarWrap} ${!sidebarOpen ? styles.sidebarCollapsed : ''}`}>
+        <div
+          className={`${styles.sidebarWrap} ${!sidebarOpen ? styles.sidebarCollapsed : ''}`}
+          style={sidebarOpen ? { width: sidebarWidth } : undefined}
+        >
           <Sidebar
             maps={maps}
             mapOrder={mapOrder}
@@ -95,6 +99,7 @@ export default function App() {
             onUpdateLabels={(mapId, labels) => updateMapLabels(mapId, labels)}
             onReorder={reorderMaps}
             onSetArchived={(mapId, archived) => setMapArchived(mapId, archived)}
+            onWidthChange={setSidebarWidth}
             user={user}
             onSignOut={signOut}
           />

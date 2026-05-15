@@ -80,3 +80,24 @@ test('sidebar closes after map select on narrow screens', async ({ page }) => {
   // On narrow screens the sidebar closes — the overlay is removed from the DOM
   await expect(page.locator('[class*="overlay"]')).not.toBeAttached();
 });
+
+test('sidebarWrap width tracks sidebar after resize', async ({ page }) => {
+  // Drag the resize handle 100px to the right and assert the wrapper matches
+  const handle = page.locator('[class*="resizeHandle"]');
+  const box = await handle.boundingBox();
+  if (!box) throw new Error('resize handle not found');
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 100, box.y + box.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  const wrap = page.locator('[class*="sidebarWrap"]');
+  const wrapBox = await wrap.boundingBox();
+  const asideBox = await page.locator('aside').boundingBox();
+  if (!wrapBox || !asideBox) throw new Error('elements not found');
+
+  // After resize, sidebarWrap width must equal aside width (buttons no longer clipped)
+  expect(wrapBox.width).toBeCloseTo(asideBox.width, 0);
+  expect(wrapBox.width).toBeGreaterThan(210);
+});

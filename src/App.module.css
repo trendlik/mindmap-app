@@ -30,7 +30,6 @@
 
 .sidebarWrap {
   flex-shrink: 0;
-  width: 210px;
   overflow: hidden;
   transition: width 0.2s ease;
 }

@@ -17,6 +17,7 @@ interface SidebarProps {
   onUpdateLabels: (mapId: string, labels: string[]) => void;
   onReorder: (newOrder: string[]) => void;
   onSetArchived: (mapId: string, archived: boolean) => void;
+  onWidthChange?: (width: number) => void;
   user: User | null;
   onSignOut: () => void;
 }
@@ -48,7 +49,7 @@ function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: strin
   return ids.filter(id => !maps[id].archived && maps[id].name.toLowerCase().includes(q));
 }
 
-export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, user, onSignOut }: SidebarProps) {
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, onWidthChange, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
@@ -86,7 +87,9 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragging.current) return;
     const delta = e.clientX - startX.current;
-    setWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta)));
+    const newW = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+    setWidth(newW);
+    onWidthChange?.(newW);
   }, []);
 
   const onMouseUp = useCallback(() => {
