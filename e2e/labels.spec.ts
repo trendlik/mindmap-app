@@ -9,24 +9,6 @@ const ROOT_A = 'label-root-a';
 const ROOT_B = 'label-root-b';
 const ROOT_C = 'label-root-c';
 
-function makeNode(id: string, label: string) {
-  return { id, label, x: 500, y: 300, parentId: null, depth: 0, w: 90, h: 36 };
-}
-
-function makeMap(id: string, name: string, rootId: string, labels?: string[]) {
-  return {
-    id,
-    name,
-    nodes: { [rootId]: makeNode(rootId, name) },
-    edges: [],
-    links: [],
-    tx: 0,
-    ty: 0,
-    scale: 1,
-    ...(labels ? { labels } : {}),
-  };
-}
-
 // A fixture that seeds three maps with varying labels:
 //   Alpha  — labels: ['work', 'urgent']
 //   Beta   — labels: ['work']
