@@ -79,9 +79,10 @@ test('add a label — chip appears below map name after typing and pressing Ente
   await expect(labelInput).toBeVisible();
   await labelInput.fill('newlabel');
   await labelInput.press('Enter');
+  await labelInput.press('Escape'); // close editor so only the display chip remains
 
   // Chip should appear below the map name
-  await expect(page.locator('aside').getByText('#newlabel')).toBeVisible();
+  await expect(page.locator('aside').getByText('#newlabel', { exact: true })).toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
@@ -101,12 +102,12 @@ test('remove a label — clicking × removes the chip', async ({ page }) => {
   const workChip = page.locator('aside').locator('[class*="labelChipEdit"]').filter({ hasText: '#work' });
   await workChip.getByRole('button').click();
 
-  // The #work chip should no longer be displayed below the map name
-  // (close editor first by pressing Escape so we see the display chips)
+  // Close editor then assert scoped to Alpha's item wrap (Beta also has #work)
   await page.keyboard.press('Escape');
-  await expect(page.locator('aside').getByText('#work').first()).not.toBeVisible();
-  // urgent should still be present
-  await expect(page.locator('aside').getByText('#urgent')).toBeVisible();
+  const alphaWrap = nameSpan.locator('../..');
+  await expect(alphaWrap.locator('span').filter({ hasText: /^#work$/ })).not.toBeVisible();
+  // urgent should still be present on Alpha
+  await expect(alphaWrap.getByText('#urgent', { exact: true })).toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
@@ -199,7 +200,9 @@ test('duplicate labels are not added — adding the same label twice keeps only 
   // Close the editor
   await labelInput.press('Escape');
 
-  // Count the number of '#work' chips visible — must be exactly one
-  const workChips = page.locator('aside').locator('[class*="labelChip"]').filter({ hasText: '#work' });
+  // Scope to Alpha's item wrap; use exact regex so edit chips (#work×) don't match
+  // and the labelChips container div is excluded (it's a div, not a span)
+  const alphaWrap = page.locator('aside nav').getByText('Alpha').first().locator('../..');
+  const workChips = alphaWrap.locator('span').filter({ hasText: /^#work$/ });
   await expect(workChips).toHaveCount(1);
 });
