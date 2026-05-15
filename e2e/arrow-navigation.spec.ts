@@ -34,6 +34,8 @@ const IDS = {
   below:  'node-below',
 };
 
+const NODE_IDS = [IDS.center, IDS.right, IDS.left, IDS.above, IDS.below];
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /** Selector for the SVG group of a node. */
@@ -235,14 +237,14 @@ fiveNodeTest.describe('arrow key spatial navigation', () => {
       await svg.click({ position: { x: 10, y: 10 } });
 
       // No node should be selected
-      for (const id of Object.values(IDS).slice(1)) {
+      for (const id of NODE_IDS) {
         expect(await nodeStroke(page, id)).not.toBe(SELECTED_STROKE);
       }
 
       await page.keyboard.press('ArrowRight');
 
       // Still nothing selected after the key press
-      for (const id of Object.values(IDS).slice(1)) {
+      for (const id of NODE_IDS) {
         expect(await nodeStroke(page, id)).not.toBe(SELECTED_STROKE);
       }
     }
