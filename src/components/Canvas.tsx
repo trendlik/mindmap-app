@@ -80,6 +80,29 @@ function touchMid(a: React.Touch, b: React.Touch, rect: DOMRect) {
   };
 }
 
+type Direction = { dx: number; dy: number };
+
+function findSpatialNeighbor(
+  nodes: MindMapNode[],
+  from: MindMapNode,
+  dir: Direction
+): MindMapNode | null {
+  let best: MindMapNode | null = null;
+  let bestScore = Infinity;
+  for (const n of nodes) {
+    if (n.id === from.id) continue;
+    const ddx = n.x - from.x;
+    const ddy = n.y - from.y;
+    const dot = ddx * dir.dx + ddy * dir.dy;
+    if (dot <= 0) continue; // not in this half-plane
+    const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+    const cos = dot / dist; // ranges (0, 1]
+    const score = dist / cos; // penalises off-axis nodes
+    if (score < bestScore) { bestScore = score; best = n; }
+  }
+  return best;
+}
+
 export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
@@ -119,6 +142,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const editInputRef = useRef<HTMLInputElement>(null);
   const deleteSelectedRef = useRef<() => void>(() => {});
   const editingIdRef = useRef(editingId);
+  const selectedIdRef = useRef(selectedId);
   const undoRef = useRef(onUndo);
   const redoRef = useRef(onRedo);
   const multiSelectedRef = useRef(multiSelected);
@@ -171,6 +195,27 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       return () => clearTimeout(t);
     }
   }, [map?.id]);
+
+  function ensureNodeVisible(node: MindMapNode) {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const pad = 60;
+    const { tx: curTx, ty: curTy, scale: curScale } = viewRef.current;
+    const sx = node.x * curScale + curTx;
+    const sy = node.y * curScale + curTy;
+    let ntx = curTx;
+    let nty = curTy;
+    if (sx < pad) ntx = curTx + (pad - sx);
+    else if (sx > rect.width - pad) ntx = curTx - (sx - (rect.width - pad));
+    if (sy < pad) nty = curTy + (pad - sy);
+    else if (sy > rect.height - pad) nty = curTy - (sy - (rect.height - pad));
+    if (ntx !== curTx || nty !== curTy) {
+      setTx(ntx);
+      setTy(nty);
+      viewRef.current = { ...viewRef.current, tx: ntx, ty: nty };
+    }
+  }
 
   function toWorld(cx: number, cy: number) {
     const { tx: t, ty: u, scale: s } = viewRef.current;
@@ -387,6 +432,38 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         }
         if (e.key === 'l' || e.key === 'L') {
           startLinkingRef.current();
+        }
+        const ARROW_DIRS: Record<string, Direction> = {
+          ArrowRight: { dx: 1, dy: 0 },
+          ArrowLeft:  { dx: -1, dy: 0 },
+          ArrowUp:    { dx: 0, dy: -1 },
+          ArrowDown:  { dx: 0, dy: 1 },
+        };
+        if (e.key in ARROW_DIRS && selectedIdRef.current && map) {
+          e.preventDefault();
+          const from = map.nodes[selectedIdRef.current];
+          if (from) {
+            // Compute visible nodes inline (same collapse logic as render path)
+            const allNodes = map.nodes;
+            const hiddenInHandler = new Set<string>();
+            function hideDesc(pid: string) {
+              for (const n of Object.values(allNodes)) {
+                if (n.parentId === pid && !hiddenInHandler.has(n.id)) {
+                  hiddenInHandler.add(n.id);
+                  hideDesc(n.id);
+                }
+              }
+            }
+            for (const n of Object.values(allNodes)) {
+              if (n.collapsed) hideDesc(n.id);
+            }
+            const visibleNodes = Object.values(allNodes).filter(n => !hiddenInHandler.has(n.id));
+            const target = findSpatialNeighbor(visibleNodes, from, ARROW_DIRS[e.key]);
+            if (target) {
+              setSelectedId(target.id);
+              ensureNodeVisible(target);
+            }
+          }
         }
       }
     }
@@ -641,6 +718,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     }
   }
   deleteSelectedRef.current = deleteSelected;
+  selectedIdRef.current = selectedId;
   editingIdRef.current = editingId;
   undoRef.current = onUndo;
   redoRef.current = onRedo;
