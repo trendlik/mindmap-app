@@ -58,7 +58,7 @@ const test = base.extend<object>({
     }, { mapA: MAP_A_ID, mapB: MAP_B_ID, mapC: MAP_C_ID, rootA: ROOT_A, rootB: ROOT_B, rootC: ROOT_C });
 
     await page.goto('/');
-    await page.getByText('maps').waitFor();
+    await page.getByText('maps', { exact: true }).waitFor();
     await use(page);
   },
 });
