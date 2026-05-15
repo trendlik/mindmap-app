@@ -171,8 +171,6 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     viewRef.current = { tx, ty, scale };
   }, [tx, ty, scale]);
 
-  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
-
   const fitView = useCallback(() => {
     if (!map || !svgRef.current) return;
     const nodes = Object.values(map.nodes);
@@ -720,6 +718,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     }
   }
   deleteSelectedRef.current = deleteSelected;
+  selectedIdRef.current = selectedId;
   editingIdRef.current = editingId;
   undoRef.current = onUndo;
   redoRef.current = onRedo;
