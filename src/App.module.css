@@ -31,7 +31,6 @@
 .sidebarWrap {
   flex-shrink: 0;
   overflow: hidden;
-  transition: width 0.2s ease;
 }
 
 .sidebarCollapsed {
