@@ -262,7 +262,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                     onKeyDown={e => {
                       if ((e.key === 'Enter' || e.key === ',') && labelInput.trim()) {
                         e.preventDefault();
-                        const newLabel = labelInput.trim().replace(/,$/, '');
+                        const newLabel = labelInput.trim();
                         if (newLabel && !(m.labels ?? []).includes(newLabel)) {
                           onUpdateLabels(id, [...(m.labels ?? []), newLabel]);
                         }
