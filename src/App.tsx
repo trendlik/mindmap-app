@@ -11,6 +11,8 @@ export default function App() {
   const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(210);
+  const [focusedNode, setFocusedNode] = useState<{ mapId: string; nodeId: string } | null>(null);
+  const [highlightQuery, setHighlightQuery] = useState<string | undefined>(undefined);
   const {
     maps,
     activeMapId,
@@ -69,8 +71,16 @@ export default function App() {
 
   const handleSelectMap = useCallback((mapId: string) => {
     switchMap(mapId);
+    setFocusedNode(null);
     if (window.innerWidth <= 640) setSidebarOpen(false);
   }, [switchMap]);
+
+  const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
+    if (mapId !== activeMapId) switchMap(mapId);
+    setFocusedNode({ mapId, nodeId });
+    // Derive highlight query from the current search — strip prefix if present
+    // (App doesn't have direct access to the search string, so Canvas derives from focusNodeId)
+  }, [activeMapId, switchMap]);
 
   return (
     <AuthGate>
@@ -100,6 +110,8 @@ export default function App() {
             onReorder={reorderMaps}
             onSetArchived={(mapId, archived) => setMapArchived(mapId, archived)}
             onWidthChange={setSidebarWidth}
+            onNodeFocus={handleNodeFocus}
+            onHighlightQueryChange={setHighlightQuery}
             user={user}
             onSignOut={signOut}
           />
@@ -122,6 +134,8 @@ export default function App() {
           canRedo={canRedo}
           onExportJson={exportJson}
           onExportImg={exportSvg}
+          highlightQuery={highlightQuery}
+          focusNodeId={focusedNode?.mapId === activeMapId ? focusedNode.nodeId : undefined}
         />
       </div>
     </AuthGate>

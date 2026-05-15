@@ -114,19 +114,19 @@ test('remove a label — clicking × removes the chip', async ({ page }) => {
 // c) Search by map name — plain text filters the list
 // ---------------------------------------------------------------------------
 test('search by name — plain text shows only matching maps', async ({ page }) => {
-  const searchInput = page.locator('aside input[placeholder="Search or label:tag"]');
+  const searchInput = page.locator('aside input[placeholder="Search maps, nodes… or label:tag"]');
   await searchInput.fill('Alpha');
 
-  await expect(page.locator('aside nav').getByText('Alpha')).toBeVisible();
-  await expect(page.locator('aside nav').getByText('Beta')).not.toBeVisible();
-  await expect(page.locator('aside nav').getByText('Gamma')).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Alpha')).toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Beta')).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Gamma')).not.toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
 // d) Search by single label — label:X shows only maps with that label
 // ---------------------------------------------------------------------------
 test('search by single label — label:personal shows only Gamma', async ({ page }) => {
-  const searchInput = page.locator('aside input[placeholder="Search or label:tag"]');
+  const searchInput = page.locator('aside input[placeholder="Search maps, nodes… or label:tag"]');
   await searchInput.fill('label:personal');
 
   await expect(page.locator('aside nav').getByText('Gamma')).toBeVisible();
@@ -135,7 +135,7 @@ test('search by single label — label:personal shows only Gamma', async ({ page
 });
 
 test('search by single label — label:work shows Alpha and Beta', async ({ page }) => {
-  const searchInput = page.locator('aside input[placeholder="Search or label:tag"]');
+  const searchInput = page.locator('aside input[placeholder="Search maps, nodes… or label:tag"]');
   await searchInput.fill('label:work');
 
   await expect(page.locator('aside nav').getByText('Alpha')).toBeVisible();
@@ -147,7 +147,7 @@ test('search by single label — label:work shows Alpha and Beta', async ({ page
 // e) Search with OR — label:X|Y shows maps with either label
 // ---------------------------------------------------------------------------
 test('search with OR — label:urgent|personal shows Alpha and Gamma', async ({ page }) => {
-  const searchInput = page.locator('aside input[placeholder="Search or label:tag"]');
+  const searchInput = page.locator('aside input[placeholder="Search maps, nodes… or label:tag"]');
   await searchInput.fill('label:urgent|personal');
 
   await expect(page.locator('aside nav').getByText('Alpha')).toBeVisible();
@@ -159,7 +159,7 @@ test('search with OR — label:urgent|personal shows Alpha and Gamma', async ({ 
 // f) Search with AND — label:X&Y shows only maps with both labels
 // ---------------------------------------------------------------------------
 test('search with AND — label:work&urgent shows only Alpha', async ({ page }) => {
-  const searchInput = page.locator('aside input[placeholder="Search or label:tag"]');
+  const searchInput = page.locator('aside input[placeholder="Search maps, nodes… or label:tag"]');
   await searchInput.fill('label:work&urgent');
 
   await expect(page.locator('aside nav').getByText('Alpha')).toBeVisible();

@@ -115,6 +115,12 @@
   border-color: var(--border-medium);
 }
 
+.item.itemFocused {
+  background: var(--bg-hover);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .dot {
   width: 6px;
   height: 6px;
@@ -474,4 +480,42 @@
 
 .labelInput:focus {
   border-bottom-color: var(--accent);
+}
+
+/* Node hit rows (search results) */
+.nodeHit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 26px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: var(--text-secondary);
+  transition: background 0.1s, color 0.1s;
+}
+
+.nodeHit:hover,
+.nodeHitFocused {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nodeHitIcon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+}
+
+.nodeHitText {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }

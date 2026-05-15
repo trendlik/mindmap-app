@@ -6,6 +6,11 @@ import styles from './Sidebar.module.css';
 const MIN_WIDTH = 150;
 const MAX_WIDTH = 400;
 
+interface NodeHit {
+  nodeId: string;
+  text: string;
+}
+
 interface SidebarProps {
   maps: Record<string, MindMap>;
   mapOrder: string[];
@@ -18,6 +23,8 @@ interface SidebarProps {
   onReorder: (newOrder: string[]) => void;
   onSetArchived: (mapId: string, archived: boolean) => void;
   onWidthChange?: (width: number) => void;
+  onNodeFocus?: (mapId: string, nodeId: string) => void;
+  onHighlightQueryChange?: (query: string) => void;
   user: User | null;
   onSignOut: () => void;
 }
@@ -46,10 +53,77 @@ function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: strin
     return ids.filter(id => !maps[id].archived && mapLabels(id).includes(tag));
   }
 
-  return ids.filter(id => !maps[id].archived && maps[id].name.toLowerCase().includes(q));
+  const titleMatch = q.match(/^title:(.+)$/i);
+  if (titleMatch) {
+    const term = titleMatch[1].trim().toLowerCase();
+    return ids.filter(id => !maps[id].archived && maps[id].name.toLowerCase().includes(term));
+  }
+
+  const nodeMatch = q.match(/^node:(.+)$/i);
+  if (nodeMatch) {
+    // Return maps that have matching nodes (map-level filter — node hits computed separately)
+    const term = nodeMatch[1].trim().toLowerCase();
+    return ids.filter(id => {
+      if (maps[id].archived) return false;
+      return Object.values(maps[id].nodes).some(n =>
+        n.label.toLowerCase().includes(term) || (n.notes ?? '').toLowerCase().includes(term)
+      );
+    });
+  }
+
+  // Plain text: match map name OR has matching nodes
+  return ids.filter(id => {
+    if (maps[id].archived) return false;
+    const nameMatch = maps[id].name.toLowerCase().includes(q);
+    const hasNodeHit = Object.values(maps[id].nodes).some(n =>
+      n.label.toLowerCase().includes(q) || (n.notes ?? '').toLowerCase().includes(q)
+    );
+    return nameMatch || hasNodeHit;
+  });
 }
 
-export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, onWidthChange, user, onSignOut }: SidebarProps) {
+/** Returns node hits per map (max 3 per map) for queries that should show node results. */
+function computeNodeHits(
+  maps: Record<string, MindMap>,
+  filteredIds: string[],
+  q: string
+): Record<string, NodeHit[]> {
+  if (!q) return {};
+
+  // label: and title: prefixes don't produce node hits
+  if (/^label:/i.test(q) || /^title:/i.test(q)) return {};
+
+  const nodeMatch = q.match(/^node:(.+)$/i);
+  const term = nodeMatch ? nodeMatch[1].trim().toLowerCase() : q.toLowerCase();
+
+  const result: Record<string, NodeHit[]> = {};
+  for (const id of filteredIds) {
+    const map = maps[id];
+    if (!map || map.archived) continue;
+    const hits: NodeHit[] = [];
+    for (const n of Object.values(map.nodes)) {
+      const labelLower = n.label.toLowerCase();
+      const notesLower = (n.notes ?? '').toLowerCase();
+      if (labelLower.includes(term) || notesLower.includes(term)) {
+        // Build snippet: prefer label if it matches, otherwise excerpt from notes
+        let snippet = n.label;
+        if (!labelLower.includes(term) && notesLower.includes(term)) {
+          const idx = notesLower.indexOf(term);
+          const start = Math.max(0, idx - 20);
+          const end = idx + term.length + 30;
+          const trailingEllipsis = end < (n.notes ?? '').length ? '…' : '';
+          snippet = (start > 0 ? '…' : '') + (n.notes ?? '').slice(start, end).trimEnd() + trailingEllipsis;
+        }
+        hits.push({ nodeId: n.id, text: snippet });
+        if (hits.length >= 3) break;
+      }
+    }
+    if (hits.length > 0) result[id] = hits;
+  }
+  return result;
+}
+
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, onWidthChange, onNodeFocus, onHighlightQueryChange, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
@@ -57,6 +131,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState('');
+  const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -131,8 +206,36 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     if (name !== null) onCreate(name.trim() || 'new map');
   }
 
-  const filteredIds = applySearch(maps, mapOrder, searchQuery.toLowerCase().trim());
+  const q = searchQuery.toLowerCase().trim();
+
+  // Derive the effective node-search term and notify parent so Canvas can highlight
+  useEffect(() => {
+    if (!onHighlightQueryChange) return;
+    if (!q) { onHighlightQueryChange(''); return; }
+    if (/^label:/i.test(q) || /^title:/i.test(q)) { onHighlightQueryChange(''); return; }
+    const nodeMatch = q.match(/^node:(.+)$/i);
+    onHighlightQueryChange(nodeMatch ? nodeMatch[1].trim() : q);
+  }, [q, onHighlightQueryChange]);
+
+  const filteredIds = applySearch(maps, mapOrder, q);
+  const nodeHits = computeNodeHits(maps, filteredIds, q);
   const archivedIds = mapOrder.filter(id => maps[id]?.archived);
+
+  // Build a flat ordered list of focusable result items for keyboard nav:
+  // [{ type: 'map', mapId }, { type: 'node', mapId, nodeId }, ...]
+  type ResultItem =
+    | { type: 'map'; mapId: string }
+    | { type: 'node'; mapId: string; nodeId: string };
+  const resultItems: ResultItem[] = [];
+  for (const id of filteredIds) {
+    resultItems.push({ type: 'map', mapId: id });
+    const hits = nodeHits[id];
+    if (hits) {
+      for (const h of hits) {
+        resultItems.push({ type: 'node', mapId: id, nodeId: h.nodeId });
+      }
+    }
+  }
 
   return (
     <aside className={styles.sidebar} style={{ width, minWidth: width }}>
@@ -148,10 +251,34 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
       <div className={styles.searchWrap}>
         <input
           className={styles.searchInput}
-          placeholder="Search or label:tag"
+          placeholder="Search maps, nodes… or label:tag"
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={e => { setSearchQuery(e.target.value); setFocusedResultIndex(-1); }}
           aria-label="Search maps"
+          onKeyDown={e => {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              const next = Math.min(focusedResultIndex + 1, resultItems.length - 1);
+              setFocusedResultIndex(next);
+              const item = resultItems[next];
+              if (item?.type === 'node' && onNodeFocus) onNodeFocus(item.mapId, item.nodeId);
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              const next = Math.max(focusedResultIndex - 1, -1);
+              setFocusedResultIndex(next);
+              if (next >= 0) {
+                const item = resultItems[next];
+                if (item?.type === 'node' && onNodeFocus) onNodeFocus(item.mapId, item.nodeId);
+              }
+            } else if (e.key === 'Enter' && focusedResultIndex >= 0) {
+              const item = resultItems[focusedResultIndex];
+              if (item?.type === 'map') onSelect(item.mapId);
+              else if (item?.type === 'node' && onNodeFocus) onNodeFocus(item.mapId, item.nodeId);
+            } else if (e.key === 'Escape') {
+              setSearchQuery('');
+              setFocusedResultIndex(-1);
+            }
+          }}
         />
       </div>
 
@@ -159,13 +286,15 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
         {filteredIds.map((id, index) => {
           const m = maps[id];
           const isDragged = draggedId === id;
+          const mapResultIndex = resultItems.findIndex(r => r.type === 'map' && r.mapId === id);
+          const isMapFocused = focusedResultIndex === mapResultIndex && mapResultIndex >= 0;
           return (
             <div key={id} className={styles.itemWrap}>
               {dropIndex === index && draggedId !== id && (
                 <div className={styles.dropLine} />
               )}
               <div
-                className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''}`}
+                className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''} ${isMapFocused ? styles.itemFocused : ''}`}
                 draggable={editingId !== id}
                 onClick={() => {
                   if (clickTimer.current) clearTimeout(clickTimer.current);
@@ -312,6 +441,28 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   />
                 </div>
               )}
+              {nodeHits[id] && nodeHits[id].map(hit => {
+                const itemIndex = resultItems.findIndex(r => r.type === 'node' && r.mapId === id && r.nodeId === hit.nodeId);
+                const isFocused = focusedResultIndex === itemIndex;
+                return (
+                  <button
+                    key={hit.nodeId}
+                    className={`${styles.nodeHit} ${isFocused ? styles.nodeHitFocused : ''}`}
+                    tabIndex={0}
+                    onClick={() => {
+                      if (onNodeFocus) onNodeFocus(id, hit.nodeId);
+                    }}
+                    onFocus={() => setFocusedResultIndex(itemIndex)}
+                  >
+                    <span className={styles.nodeHitIcon}>
+                      <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                        <circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" strokeWidth="1.2"/>
+                      </svg>
+                    </span>
+                    <span className={styles.nodeHitText}>{hit.text}</span>
+                  </button>
+                );
+              })}
             </div>
           );
         })}
