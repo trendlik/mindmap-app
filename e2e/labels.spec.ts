@@ -117,9 +117,9 @@ test('search by name — plain text shows only matching maps', async ({ page }) 
   const searchInput = page.locator('aside input[placeholder="Search maps, nodes… or label:tag"]');
   await searchInput.fill('Alpha');
 
-  await expect(page.locator('aside nav').getByText('Alpha')).toBeVisible();
-  await expect(page.locator('aside nav').getByText('Beta')).not.toBeVisible();
-  await expect(page.locator('aside nav').getByText('Gamma')).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Alpha')).toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Beta')).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Gamma')).not.toBeVisible();
 });
 
 // ---------------------------------------------------------------------------

@@ -139,9 +139,9 @@ test('empty query — all non-archived maps are shown', async ({ page }) => {
 test('plain text — finds map by name and hides non-matching maps', async ({ page }) => {
   await searchInput(page).fill('project');
 
-  await expect(page.locator('aside nav').getByText('Project Alpha', { exact: true })).toBeVisible();
-  await expect(page.locator('aside nav').getByText('Work Notes', { exact: true })).not.toBeVisible();
-  await expect(page.locator('aside nav').getByText('Personal', { exact: true })).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Project Alpha')).toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Work Notes')).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Personal')).not.toBeVisible();
 });
 
 // ─── 3. Plain text also finds maps by node text ───────────────────────────────
@@ -219,9 +219,9 @@ test('node: prefix — does not show map matched only by name when node does not
   await searchInput(page).fill('node:alpha');
 
   // "Project Alpha" node label matches — map should be visible
-  await expect(page.locator('aside nav').getByText('Project Alpha', { exact: true })).toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Project Alpha')).toBeVisible();
   // "Work Notes" map name doesn't match any node text containing "alpha"
-  await expect(page.locator('aside nav').getByText('Work Notes', { exact: true })).not.toBeVisible();
+  await expect(page.locator('aside nav').getByTitle('Work Notes')).not.toBeVisible();
 });
 
 test('node: prefix — matches notes field as well as label', async ({ page }) => {
