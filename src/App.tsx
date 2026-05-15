@@ -17,6 +17,7 @@ export default function App() {
     createMap,
     deleteMap,
     renameMap,
+    updateMapLabels,
     reorderMaps,
     switchMap,
     saveView,
@@ -91,6 +92,7 @@ export default function App() {
             onCreate={createMap}
             onDelete={deleteMap}
             onRename={renameMap}
+            onUpdateLabels={(mapId, labels) => updateMapLabels(mapId, labels)}
             onReorder={reorderMaps}
             onSetArchived={(mapId, archived) => setMapArchived(mapId, archived)}
             user={user}

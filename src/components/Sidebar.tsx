@@ -14,6 +14,7 @@ interface SidebarProps {
   onCreate: (name?: string) => void;
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
   onRename: (mapId: string, name: string) => void;
+  onUpdateLabels: (mapId: string, labels: string[]) => void;
   onReorder: (newOrder: string[]) => void;
   onSetArchived: (mapId: string, archived: boolean) => void;
   user: User | null;
@@ -23,57 +24,38 @@ interface SidebarProps {
 function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: string): string[] {
   const ids = mapOrder.filter(id => maps[id]);
 
-  if (!q) {
-    return ids.filter(id => !maps[id].archived);
-  }
+  if (!q) return ids.filter(id => !maps[id].archived);
 
   const labelMatch = q.match(/^label:(.+)$/i);
   if (labelMatch) {
     const expr = labelMatch[1].trim();
-
-    // Special case: label:archived shows only archived maps
     if (expr.toLowerCase() === 'archived') {
       return ids.filter(id => maps[id].archived === true);
     }
-
-    // OR syntax: label:A|B
+    const mapLabels = (id: string) => (maps[id].labels ?? []).map(l => l.toLowerCase());
     if (expr.includes('|')) {
-      const terms = expr.split('|').map(t => t.trim().toLowerCase()).filter(Boolean);
-      return ids.filter(id => {
-        if (maps[id].archived) return false;
-        const lbls = (maps[id].labels || []).map(l => l.toLowerCase());
-        return terms.some(t => lbls.includes(t));
-      });
+      const tags = expr.split('|').map(t => t.trim().toLowerCase());
+      return ids.filter(id => !maps[id].archived && tags.some(t => mapLabels(id).includes(t)));
     }
-
-    // AND syntax: label:A+B
-    if (expr.includes('+')) {
-      const terms = expr.split('+').map(t => t.trim().toLowerCase()).filter(Boolean);
-      return ids.filter(id => {
-        if (maps[id].archived) return false;
-        const lbls = (maps[id].labels || []).map(l => l.toLowerCase());
-        return terms.every(t => lbls.includes(t));
-      });
+    if (expr.includes('&')) {
+      const tags = expr.split('&').map(t => t.trim().toLowerCase());
+      return ids.filter(id => !maps[id].archived && tags.every(t => mapLabels(id).includes(t)));
     }
-
-    // Single label
-    const term = expr.toLowerCase();
-    return ids.filter(id => {
-      if (maps[id].archived) return false;
-      return (maps[id].labels || []).map(l => l.toLowerCase()).includes(term);
-    });
+    const tag = expr.toLowerCase();
+    return ids.filter(id => !maps[id].archived && mapLabels(id).includes(tag));
   }
 
-  // Plain text search — exclude archived
-  return ids.filter(id => maps[id].name.toLowerCase().includes(q) && !maps[id].archived);
+  return ids.filter(id => !maps[id].archived && maps[id].name.toLowerCase().includes(q));
 }
 
-export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onReorder, onSetArchived, user, onSignOut }: SidebarProps) {
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
   const [searchQuery, setSearchQuery] = useState('');
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
+  const [labelInput, setLabelInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -90,6 +72,16 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
       inputRef.current.select();
     }
   }, [editingId]);
+
+  // Close label editor when clicking outside
+  useEffect(() => {
+    if (!labelEditingId) return;
+    function handleDocClick() {
+      setLabelEditingId(null);
+    }
+    document.addEventListener('click', handleDocClick);
+    return () => document.removeEventListener('click', handleDocClick);
+  }, [labelEditingId]);
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragging.current) return;
@@ -151,8 +143,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
       <div className={styles.searchWrap}>
         <input
           className={styles.searchInput}
-          type="text"
-          placeholder="Search maps…"
+          placeholder="Search or label:tag"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           aria-label="Search maps"
@@ -235,6 +226,20 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   <span className={styles.name} title={m.name}>{m.name}</span>
                 )}
                 <button
+                  className={styles.labelBtn}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setLabelEditingId(id === labelEditingId ? null : id);
+                    setLabelInput('');
+                  }}
+                  title="Edit labels"
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M1 1h4.5l5.5 5.5-4.5 4.5L1 5.5V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+                    <circle cx="3.5" cy="3.5" r="0.8" fill="currentColor"/>
+                  </svg>
+                </button>
+                <button
                   className={styles.archiveBtn}
                   title="Archive map"
                   onClick={e => {
@@ -263,6 +268,45 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   </button>
                 )}
               </div>
+              {(m.labels ?? []).length > 0 && (
+                <div className={styles.labelChips}>
+                  {(m.labels ?? []).map(l => (
+                    <span key={l} className={styles.labelChip}>#{l}</span>
+                  ))}
+                </div>
+              )}
+              {labelEditingId === id && (
+                <div className={styles.labelEditor} onClick={e => e.stopPropagation()}>
+                  {(m.labels ?? []).length > 0 && (
+                    <div className={styles.labelChipsEdit}>
+                      {(m.labels ?? []).map(l => (
+                        <span key={l} className={styles.labelChipEdit}>
+                          #{l}
+                          <button onClick={() => onUpdateLabels(id, (m.labels ?? []).filter(x => x !== l))}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    className={styles.labelInput}
+                    placeholder="Add label…"
+                    value={labelInput}
+                    autoFocus
+                    onChange={e => setLabelInput(e.target.value)}
+                    onKeyDown={e => {
+                      if ((e.key === 'Enter' || e.key === ',') && labelInput.trim()) {
+                        e.preventDefault();
+                        const newLabel = labelInput.trim();
+                        if (newLabel && !(m.labels ?? []).includes(newLabel)) {
+                          onUpdateLabels(id, [...(m.labels ?? []), newLabel]);
+                        }
+                        setLabelInput('');
+                      }
+                      if (e.key === 'Escape') setLabelEditingId(null);
+                    }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
