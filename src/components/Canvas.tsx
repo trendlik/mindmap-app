@@ -22,6 +22,8 @@ interface CanvasProps {
   canRedo: boolean;
   onExportJson: (map: MindMap) => void;
   onExportImg: (map: MindMap) => void;
+  highlightQuery?: string;
+  focusNodeId?: string;
 }
 
 interface PanState {
@@ -103,7 +105,7 @@ function findSpatialNeighbor(
   return best;
 }
 
-export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg }: CanvasProps) {
+export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, highlightQuery, focusNodeId }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
   const [ty, setTy] = useState(map?.ty ?? 0);
@@ -195,6 +197,16 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       return () => clearTimeout(t);
     }
   }, [map?.id]);
+
+  // Pan canvas to the focused node when focusNodeId changes
+  useEffect(() => {
+    if (!focusNodeId || !map) return;
+    const node = map.nodes[focusNodeId];
+    if (!node) return;
+    // Small delay to allow map switch to settle
+    const t = setTimeout(() => ensureNodeVisible(node), 60);
+    return () => clearTimeout(t);
+  }, [focusNodeId, map?.id]);
 
   function ensureNodeVisible(node: MindMapNode) {
     const svg = svgRef.current;
@@ -779,6 +791,17 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     }
   })();
 
+  // Derive the set of nodes that match the current search query for highlighting
+  const highlightNodeIds = new Set<string>();
+  if (highlightQuery) {
+    const term = highlightQuery.toLowerCase();
+    for (const n of Object.values(map.nodes)) {
+      if (n.label.toLowerCase().includes(term) || (n.notes ?? '').toLowerCase().includes(term)) {
+        highlightNodeIds.add(n.id);
+      }
+    }
+  }
+
   const nodes = Object.values(map.nodes).filter(n => !hiddenIds.has(n.id));
   const edges = map.edges.filter(e => !hiddenIds.has(e.from) && !hiddenIds.has(e.to));
   const links = (map.links || []).filter(l => !hiddenIds.has(l.from) && !hiddenIds.has(l.to));
@@ -933,6 +956,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               const c = colorForDepth(n.depth);
               const isSel = n.id === selectedId;
               const isMultiSel = multiSelected.has(n.id);
+              const isHighlighted = highlightNodeIds.has(n.id);
+              const isFocusNode = n.id === focusNodeId;
               return (
                 <g
                   key={n.id}
@@ -942,6 +967,20 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                   onMouseDown={e => onNodeMouseDown(e, n.id)}
                   onDoubleClick={e => startEdit(e, n.id)}
                 >
+                  {isHighlighted && (
+                    <rect
+                      x={-4}
+                      y={-4}
+                      width={w + 8}
+                      height={h + 8}
+                      rx={(n.depth === 0 ? 10 : 8) + 3}
+                      fill="none"
+                      stroke={isFocusNode ? '#1D9E75' : '#F39C12'}
+                      strokeWidth={isFocusNode ? 2.5 : 2}
+                      strokeOpacity={isFocusNode ? 0.9 : 0.7}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
                   <rect
                     width={w}
                     height={h}
