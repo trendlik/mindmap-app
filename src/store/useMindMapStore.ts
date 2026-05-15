@@ -38,6 +38,7 @@ export interface MindMap {
   id: string;
   name: string;
   labels?: string[];
+  archived?: boolean;
   nodes: Record<string, MindMapNode>;
   edges: Edge[];
   links?: CustomLink[];
@@ -530,6 +531,10 @@ export function useMindMapStore(userId: string | null) {
     }));
   }, [updateMapWithUndo]);
 
+  const setMapArchived = useCallback((mapId: string, archived: boolean) => {
+    updateMap(mapId, m => ({ ...m, archived }));
+  }, [updateMap]);
+
   return {
     maps,
     activeMapId,
@@ -548,6 +553,7 @@ export function useMindMapStore(userId: string | null) {
     addLink,
     updateLink,
     deleteLink,
+    setMapArchived,
     applyAutoLayout,
     undo,
     redo,

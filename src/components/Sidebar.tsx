@@ -16,37 +16,44 @@ interface SidebarProps {
   onRename: (mapId: string, name: string) => void;
   onUpdateLabels: (mapId: string, labels: string[]) => void;
   onReorder: (newOrder: string[]) => void;
+  onSetArchived: (mapId: string, archived: boolean) => void;
   user: User | null;
   onSignOut: () => void;
 }
 
-function applySearch(maps: Record<string, MindMap>, mapOrder: string[], query: string): string[] {
+function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: string): string[] {
   const ids = mapOrder.filter(id => maps[id]);
-  if (!query.trim()) return ids;
-  const labelMatch = query.match(/^label:(.+)$/i);
+
+  if (!q) return ids.filter(id => !maps[id].archived);
+
+  const labelMatch = q.match(/^label:(.+)$/i);
   if (labelMatch) {
-    const expr = labelMatch[1];
+    const expr = labelMatch[1].trim();
+    if (expr.toLowerCase() === 'archived') {
+      return ids.filter(id => maps[id].archived === true);
+    }
     const mapLabels = (id: string) => (maps[id].labels ?? []).map(l => l.toLowerCase());
     if (expr.includes('|')) {
       const tags = expr.split('|').map(t => t.trim().toLowerCase());
-      return ids.filter(id => tags.some(t => mapLabels(id).includes(t)));
+      return ids.filter(id => !maps[id].archived && tags.some(t => mapLabels(id).includes(t)));
     }
     if (expr.includes('&')) {
       const tags = expr.split('&').map(t => t.trim().toLowerCase());
-      return ids.filter(id => tags.every(t => mapLabels(id).includes(t)));
+      return ids.filter(id => !maps[id].archived && tags.every(t => mapLabels(id).includes(t)));
     }
-    const tag = expr.trim().toLowerCase();
-    return ids.filter(id => mapLabels(id).includes(tag));
+    const tag = expr.toLowerCase();
+    return ids.filter(id => !maps[id].archived && mapLabels(id).includes(tag));
   }
-  const q = query.trim().toLowerCase();
-  return ids.filter(id => maps[id].name.toLowerCase().includes(q));
+
+  return ids.filter(id => !maps[id].archived && maps[id].name.toLowerCase().includes(q));
 }
 
-export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, user, onSignOut }: SidebarProps) {
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, user, onSignOut }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
   const [searchQuery, setSearchQuery] = useState('');
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +126,9 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     if (name !== null) onCreate(name.trim() || 'new map');
   }
 
+  const filteredIds = applySearch(maps, mapOrder, searchQuery.toLowerCase().trim());
+  const archivedIds = mapOrder.filter(id => maps[id]?.archived);
+
   return (
     <aside className={styles.sidebar} style={{ width, minWidth: width }}>
       <div className={styles.header}>
@@ -136,11 +146,12 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
           placeholder="Search or label:tag"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
+          aria-label="Search maps"
         />
       </div>
 
       <nav className={styles.list}>
-        {applySearch(maps, mapOrder, searchQuery).map((id, index) => {
+        {filteredIds.map((id, index) => {
           const m = maps[id];
           const isDragged = draggedId === id;
           return (
@@ -180,9 +191,18 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   const mid = rect.top + rect.height / 2;
                   const insertAt = e.clientY < mid ? index : index + 1;
                   const newOrder = mapOrder.filter(oid => oid !== draggedId);
-                  const draggedOrigIndex = mapOrder.indexOf(draggedId);
-                  const adjustedInsert = insertAt > draggedOrigIndex ? insertAt - 1 : insertAt;
-                  newOrder.splice(adjustedInsert, 0, draggedId);
+                  // Convert filteredIds insertion index → mapOrder position.
+                  // filteredIds[insertAt] is the item that should follow the dropped card.
+                  // If it's the dragged card itself or past the end, insert after the last active item.
+                  const anchorId = insertAt < filteredIds.length ? filteredIds[insertAt] : null;
+                  let targetIndex: number;
+                  if (anchorId != null && anchorId !== draggedId) {
+                    targetIndex = newOrder.indexOf(anchorId);
+                  } else {
+                    const lastActiveId = filteredIds.slice().reverse().find(fid => fid !== draggedId);
+                    targetIndex = lastActiveId != null ? newOrder.indexOf(lastActiveId) + 1 : newOrder.length;
+                  }
+                  newOrder.splice(targetIndex, 0, draggedId);
                   onReorder(newOrder);
                   setDraggedId(null);
                   setDropIndex(null);
@@ -217,6 +237,20 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                     <path d="M1 1h4.5l5.5 5.5-4.5 4.5L1 5.5V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
                     <circle cx="3.5" cy="3.5" r="0.8" fill="currentColor"/>
+                  </svg>
+                </button>
+                <button
+                  className={styles.archiveBtn}
+                  title="Archive map"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onSetArchived(id, true);
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <rect x="1" y="1" width="10" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                    <path d="M2 4v6.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V4" stroke="currentColor" strokeWidth="1.2"/>
+                    <path d="M4.5 6.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
                   </svg>
                 </button>
                 {Object.keys(maps).length > 1 && (
@@ -276,10 +310,49 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
             </div>
           );
         })}
-        {dropIndex === mapOrder.length && draggedId && (
+        {dropIndex === filteredIds.length && draggedId && (
           <div className={styles.dropLine} />
         )}
       </nav>
+
+      {archivedIds.length > 0 && (
+        <div className={styles.archivedSection}>
+          <button
+            className={styles.archivedHeader}
+            onClick={() => setArchivedOpen(v => !v)}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+              style={{ transform: archivedOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+              <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Archived ({archivedIds.length})</span>
+          </button>
+          {archivedOpen && (
+            <div className={styles.archivedList}>
+              {archivedIds.map(id => {
+                const m = maps[id];
+                return (
+                  <div key={id} className={styles.archivedItem}>
+                    <div className={styles.dot} />
+                    <span className={styles.name} title={m.name}>{m.name}</span>
+                    <button
+                      className={styles.restoreBtn}
+                      title="Unarchive map"
+                      onClick={e => { e.stopPropagation(); onSetArchived(id, false); }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <rect x="1" y="1" width="10" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M2 4v6.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5V4" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M5 8.5V6M5 6l-1.5 1.5M5 6l1.5 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={styles.footer}>
         {user && (
@@ -295,7 +368,18 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
             </button>
           </div>
         )}
-        <span className={styles.footerText}>{Object.keys(maps).length} map{Object.keys(maps).length !== 1 ? 's' : ''}</span>
+        <span className={styles.footerText}>
+          {(() => {
+            const total = Object.keys(maps).length;
+            const archivedCount = Object.values(maps).filter(m => m.archived).length;
+            return (
+              <>
+                {total} map{total !== 1 ? 's' : ''}
+                {archivedCount > 0 && <> ({archivedCount} archived)</>}
+              </>
+            );
+          })()}
+        </span>
       </div>
       <div className={styles.resizeHandle} onMouseDown={startResize} />
     </aside>
