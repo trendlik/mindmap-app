@@ -37,6 +37,7 @@ export interface CustomLink {
 export interface MindMap {
   id: string;
   name: string;
+  labels?: string[];
   nodes: Record<string, MindMapNode>;
   edges: Edge[];
   links?: CustomLink[];
@@ -387,6 +388,10 @@ export function useMindMapStore(userId: string | null) {
     updateMapWithUndo(mapId, m => ({ ...m, name }));
   }, [updateMapWithUndo]);
 
+  const updateMapLabels = useCallback((mapId: string, labels: string[]) => {
+    updateMap(mapId, m => ({ ...m, labels }));
+  }, [updateMap]);
+
   const switchMap = useCallback((mapId: string) => {
     setActiveMapId(mapId);
   }, []);
@@ -532,6 +537,7 @@ export function useMindMapStore(userId: string | null) {
     createMap,
     deleteMap,
     renameMap,
+    updateMapLabels,
     reorderMaps,
     switchMap,
     saveView,
