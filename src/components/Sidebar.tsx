@@ -148,6 +148,17 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
         </button>
       </div>
 
+      <div className={styles.searchWrap}>
+        <input
+          className={styles.searchInput}
+          type="text"
+          placeholder="Search maps…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          aria-label="Search maps"
+        />
+      </div>
+
       <nav className={styles.list}>
         {filteredIds.map((id, index) => {
           const m = maps[id];
