@@ -33,6 +33,7 @@ interface PanState {
   cy: number;
   tx: number;
   ty: number;
+  hasMoved: boolean;
 }
 
 interface DragState {
@@ -310,8 +311,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setSelectedId(null);
       setSelectedLinkId(null);
       setMultiSelected(new Set());
-      panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
-      trackEvent('pan');
+      panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty, hasMoved: false };
     }
   }
 
@@ -417,6 +417,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         const { cx, cy } = getSVGXY(e);
         const ntx = panRef.current.tx + (cx - panRef.current.cx);
         const nty = panRef.current.ty + (cy - panRef.current.cy);
+        panRef.current.hasMoved = true;
         setTx(ntx); setTy(nty);
       }
     }
@@ -448,6 +449,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         trackEvent('nodeDrag');
       }
       if (panRef.current && map) {
+        if (panRef.current.hasMoved) trackEvent('pan');
         onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
       }
       dragRef.current = null;
@@ -622,7 +624,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (reparentingFrom) { setReparentingFrom(null); return; }
         setSelectedId(null);
         setSelectedLinkId(null);
-        panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
+        panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty, hasMoved: false };
         lastTapRef.current = { time: 0, nodeId: null };
       }
     }

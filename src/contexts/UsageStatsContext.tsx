@@ -111,7 +111,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
             merged.features[key] = lf;
           } else {
             merged.features[key] = {
-              count: Math.max(lf.count, rf.count),
+              count: lf.count + rf.count,
               lastUsed: lf.lastUsed > rf.lastUsed ? lf.lastUsed : rf.lastUsed,
             };
           }
@@ -155,6 +155,8 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
         statsRef.current.totalActiveMs += Date.now() - visibilityStartRef.current;
         visibilityStartRef.current = null;
       }
+      Object.values(pendingHighFreq.current).forEach(t => clearTimeout(t));
+      pendingHighFreq.current = {} as Record<FeatureKey, ReturnType<typeof setTimeout>>;
       if (firestoreTimer.current) clearTimeout(firestoreTimer.current);
       flushToFirestore();
     };
