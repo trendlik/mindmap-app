@@ -3,6 +3,7 @@ import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMa
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
+import ConfirmDialog from './ConfirmDialog';
 import styles from './Canvas.module.css';
 
 interface CanvasProps {
@@ -134,6 +135,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   // Link selection
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const panRef = useRef<PanState | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -744,22 +747,26 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   }
 
   function deleteSelected() {
-    if (!map) return;
+    if (!map || confirmDialog !== null) return;
     if (selectedLinkId) {
-      if (!confirm('Delete this link?')) return;
-      onDeleteLink(map.id, selectedLinkId);
-      setSelectedLinkId(null);
+      const linkId = selectedLinkId;
+      setConfirmDialog({
+        title: 'Delete link',
+        message: 'Delete this link?',
+        onConfirm: () => { onDeleteLink(map.id, linkId); setSelectedLinkId(null); setConfirmDialog(null); },
+      });
       return;
     }
     if (!selectedId || Object.keys(map.nodes).length <= 1) return;
     const node = map.nodes[selectedId];
-    if (!confirm(`Delete "${node.label}"?`)) return;
-    onDeleteNode(map.id, selectedId, map.nodes, map.edges);
-    setSelectedId(null);
-    if (notesNodeId === selectedId) {
-      setNotesOpen(false);
-      setNotesNodeId(null);
-    }
+    const nodeId = selectedId;
+    const shouldCloseNotes = notesNodeId === selectedId;
+    setConfirmDialog({
+      title: 'Delete node',
+      message: `Delete "${node.label}"?`,
+      onConfirm: () => { onDeleteNode(map.id, nodeId, map.nodes, map.edges); setSelectedId(null); if (shouldCloseNotes) { setNotesOpen(false); setNotesNodeId(null); } setConfirmDialog(null); },
+    });
+    return;
   }
   deleteSelectedRef.current = deleteSelected;
   selectedIdRef.current = selectedId;
@@ -1202,6 +1209,13 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         <button className={styles.zoomBtn} onClick={() => zoomBy(1.1)} title="Zoom in">+</button>
         <span className={styles.zoomHash}>{__COMMIT_HASH__}</span>
       </div>
+      <ConfirmDialog
+        isOpen={confirmDialog !== null}
+        title={confirmDialog?.title ?? ''}
+        message={confirmDialog?.message ?? ''}
+        onConfirm={confirmDialog?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </div>
   );
 }
