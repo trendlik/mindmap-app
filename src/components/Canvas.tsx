@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
+import { useUsageStats } from '../contexts/UsageStatsContext';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
 import ConfirmDialog from './ConfirmDialog';
@@ -107,6 +108,7 @@ function findSpatialNeighbor(
 }
 
 export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, highlightQuery, focusNodeId }: CanvasProps) {
+  const { trackEvent } = useUsageStats();
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
   const [ty, setTy] = useState(map?.ty ?? 0);
@@ -193,7 +195,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nty = r.height / 2 - ((minY + maxY) / 2) * ns;
     setTx(ntx); setTy(nty); setScale(ns);
     onSaveView(map.id, ntx, nty, ns);
-  }, [map, onSaveView]);
+    trackEvent('fitView');
+  }, [map, onSaveView, trackEvent]);
 
   function centerOnRoot() {
     if (!map || !svgRef.current) return;
@@ -309,6 +312,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setSelectedLinkId(null);
       setMultiSelected(new Set());
       panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
+      trackEvent('pan');
     }
   }
 
@@ -369,6 +373,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     setMultiSelected(new Set());
     if (notesOpen) setNotesNodeId(nodeId);
     dragRef.current = { id: nodeId, ox: w.x - n.x, oy: w.y - n.y, moved: false };
+    trackEvent('nodeDrag');
   }
 
   function onLinkClick(e: React.MouseEvent, linkId: string) {
@@ -463,10 +468,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undoRef.current();
+        trackEvent('undo');
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
         redoRef.current();
+        trackEvent('redo');
       }
       if (!editingIdRef.current && !isEditable) {
         if (e.key === 'Tab') {
@@ -533,6 +540,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
     setTx(ntx); setTy(nty); setScale(ns);
     onSaveView(map!.id, ntx, nty, ns);
+    trackEvent('zoom');
   }
 
   function zoomBy(delta: number) {
@@ -697,6 +705,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const v = editValue.trim();
     if (v) onUpdateNode(map!.id, editingId, { label: v });
     setEditingId(null);
+    trackEvent('nodeInlineEdit');
   }
 
   function addChild() {
@@ -708,6 +717,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const grandparent = p.parentId ? map.nodes[p.parentId] : null;
     const xOffset = grandparent && p.x < grandparent.x ? -190 : 190;
     const id = onAddNode(map.id, 'new idea', p.x + xOffset, p.y + ch.length * 55 - (ch.length - 1) * 27, pid, (p.depth || 0) + 1);
+    trackEvent('addChild');
     setSelectedId(id);
     setTimeout(() => {
       const n = map.nodes[id] || { label: 'new idea', x: p.x + xOffset, y: p.y };
@@ -725,6 +735,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!map || !selectedId) return;
     const n = map.nodes[selectedId];
     const id = onAddNode(map.id, 'new idea', n.x, n.y + 55, n.parentId, n.depth);
+    trackEvent('addSibling');
     setSelectedId(id);
     setTimeout(() => {
       const { w, h } = measureNode('new idea');
@@ -764,7 +775,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     setConfirmDialog({
       title: 'Delete node',
       message: `Delete "${node.label}"?`,
-      onConfirm: () => { onDeleteNode(map.id, nodeId, map.nodes, map.edges); setSelectedId(null); if (shouldCloseNotes) { setNotesOpen(false); setNotesNodeId(null); } setConfirmDialog(null); },
+      onConfirm: () => { onDeleteNode(map.id, nodeId, map.nodes, map.edges); setSelectedId(null); if (shouldCloseNotes) { setNotesOpen(false); setNotesNodeId(null); } setConfirmDialog(null); trackEvent('deleteNode'); },
     });
     return;
   }

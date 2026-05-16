@@ -1,4 +1,5 @@
 import type { CustomLink } from '../store/useMindMapStore';
+import { useUsageStats } from '../contexts/UsageStatsContext';
 import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
@@ -38,6 +39,7 @@ interface ToolbarProps {
 }
 
 export default function Toolbar(props: ToolbarProps) {
+  const { trackEvent } = useUsageStats();
   const {
     onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink, onStartReparent,
     onToggleLinkStroke, onSetLinkStroke,
@@ -63,14 +65,14 @@ export default function Toolbar(props: ToolbarProps) {
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8M5 1v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
         sibling
       </button>
-      <button className={`${styles.btn} ${isLinking ? styles.active : ''}`} onClick={onStartLink} disabled={!hasSelected && !isLinking}>
+      <button className={`${styles.btn} ${isLinking ? styles.active : ''}`} onClick={() => { onStartLink(); if (!isLinking) trackEvent('addLink'); }} disabled={!hasSelected && !isLinking}>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
           <path d="M2 9L9 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           <path d="M6.5 2H9V4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         link
       </button>
-      <button className={`${styles.btn} ${isReparenting ? styles.active : ''}`} onClick={onStartReparent} disabled={!canReparent && !isReparenting}>
+      <button className={`${styles.btn} ${isReparenting ? styles.active : ''}`} onClick={() => { onStartReparent(); if (!isReparenting) trackEvent('reparent'); }} disabled={!canReparent && !isReparenting}>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
           <path d="M5.5 1v7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           <path d="M3 6l2.5 2.5L8 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -81,11 +83,11 @@ export default function Toolbar(props: ToolbarProps) {
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
         delete
       </button>
-      <button className={`${styles.btn} ${notesOpen ? styles.active : ''}`} onClick={onToggleNotes} disabled={!hasSelected}>
+      <button className={`${styles.btn} ${notesOpen ? styles.active : ''}`} onClick={() => { onToggleNotes(); trackEvent('toggleNotes'); }} disabled={!hasSelected}>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1.5" y="1.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 4h4M3.5 6h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         notes
       </button>
-      <button className={styles.btn} onClick={onToggleCollapse} disabled={!canCollapse} title={isCollapsed ? 'Expand children' : 'Collapse children'}>
+      <button className={styles.btn} onClick={() => { onToggleCollapse(); trackEvent('collapseNode'); }} disabled={!canCollapse} title={isCollapsed ? 'Expand children' : 'Collapse children'}>
         {isCollapsed ? (
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
             <path d="M3 4.5l2.5 2.5L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -163,16 +165,16 @@ export default function Toolbar(props: ToolbarProps) {
       )}
 
       <div className={styles.sep} />
-      <button className={styles.btn} onClick={onUndo} disabled={!canUndo} title="Undo (⌘Z)">
+      <button className={styles.btn} onClick={() => { onUndo(); trackEvent('undo'); }} disabled={!canUndo} title="Undo (⌘Z)">
         <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M3 3.5L1 1.5L3 -.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" transform="translate(0,2)"/><path d="M1 3.5h5.5a3 3 0 010 6H4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         undo
       </button>
-      <button className={styles.btn} onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">
+      <button className={styles.btn} onClick={() => { onRedo(); trackEvent('redo'); }} disabled={!canRedo} title="Redo (⌘⇧Z)">
         <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><path d="M8 3.5L10 1.5L8 -.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" transform="translate(0,2)"/><path d="M10 3.5H4.5a3 3 0 000 6H7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         redo
       </button>
       <div className={styles.sep} />
-      <button className={styles.btn} onClick={onLayout}>
+      <button className={styles.btn} onClick={() => { onLayout(); trackEvent('autoLayout'); }}>
         <svg width="11" height="10" viewBox="0 0 11 10" fill="none"><rect x="1" y="1" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7" y="1" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7" y="6" width="3" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M4 2.5h1.5a1 1 0 011 1v3" stroke="currentColor" strokeWidth="1.2"/></svg>
         layout
       </button>
@@ -181,8 +183,8 @@ export default function Toolbar(props: ToolbarProps) {
         fit
       </button>
       <div className={styles.sep} />
-      <button className={styles.btn} onClick={onExportJson}>JSON</button>
-      <button className={styles.btn} onClick={onExportImg}>SVG</button>
+      <button className={styles.btn} onClick={() => { onExportJson(); trackEvent('exportJson'); }}>JSON</button>
+      <button className={styles.btn} onClick={() => { onExportImg(); trackEvent('exportSvg'); }}>SVG</button>
     </div>
   );
 }

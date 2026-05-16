@@ -1,0 +1,168 @@
+import { createContext, useContext, useEffect, useRef, useCallback } from 'react';
+import { loadUsageStats, saveUsageStats } from '../store/usageStatsSync';
+
+export type FeatureKey =
+  | 'addChild' | 'addSibling' | 'deleteNode' | 'autoLayout' | 'fitView'
+  | 'exportJson' | 'exportSvg' | 'createMap' | 'renameMap' | 'deleteMap'
+  | 'switchMap' | 'archiveMap' | 'search' | 'nodeDrag' | 'nodeInlineEdit'
+  | 'pan' | 'zoom' | 'undo' | 'redo' | 'addLink' | 'reparent'
+  | 'toggleNotes' | 'collapseNode';
+
+export interface FeatureStat {
+  count: number;
+  lastUsed: string;
+}
+
+export interface UsageStats {
+  totalActiveMs: number;
+  features: Partial<Record<FeatureKey, FeatureStat>>;
+}
+
+interface UsageStatsContextValue {
+  trackEvent: (feature: FeatureKey) => void;
+  getStats: () => UsageStats;
+}
+
+const UsageStatsContext = createContext<UsageStatsContextValue>({
+  trackEvent: () => {},
+  getStats: () => ({ totalActiveMs: 0, features: {} }),
+});
+
+export function useUsageStats() {
+  return useContext(UsageStatsContext);
+}
+
+const HIGH_FREQ: Set<FeatureKey> = new Set(['pan', 'zoom', 'nodeDrag']);
+const DEBOUNCE_MS = 500;
+const FIRESTORE_DEBOUNCE_MS = 2000;
+
+function emptyStats(): UsageStats {
+  return { totalActiveMs: 0, features: {} };
+}
+
+function localKey(uid: string) {
+  return `usage_${uid}`;
+}
+
+export function UsageStatsProvider({ uid, children }: { uid: string | null; children: React.ReactNode }) {
+  const statsRef = useRef<UsageStats>(emptyStats());
+  const pendingHighFreq = useRef<Partial<Record<FeatureKey, ReturnType<typeof setTimeout>>>>({});
+  const firestoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visibilityStartRef = useRef<number | null>(null);
+  const uidRef = useRef(uid);
+  uidRef.current = uid;
+
+  const flushToFirestore = useCallback(() => {
+    const currentUid = uidRef.current;
+    if (!currentUid) return;
+    const stats = statsRef.current;
+    localStorage.setItem(localKey(currentUid), JSON.stringify(stats));
+    saveUsageStats(currentUid, stats).catch(() => {});
+  }, []);
+
+  const scheduleFirestoreFlush = useCallback(() => {
+    if (firestoreTimer.current) clearTimeout(firestoreTimer.current);
+    firestoreTimer.current = setTimeout(flushToFirestore, FIRESTORE_DEBOUNCE_MS);
+  }, [flushToFirestore]);
+
+  const trackEvent = useCallback((feature: FeatureKey) => {
+    if (HIGH_FREQ.has(feature)) {
+      if (pendingHighFreq.current[feature]) return;
+      pendingHighFreq.current[feature] = setTimeout(() => {
+        delete pendingHighFreq.current[feature];
+      }, DEBOUNCE_MS);
+    }
+    const stats = statsRef.current;
+    const existing = stats.features[feature];
+    stats.features[feature] = {
+      count: (existing?.count ?? 0) + 1,
+      lastUsed: new Date().toISOString(),
+    };
+    scheduleFirestoreFlush();
+  }, [scheduleFirestoreFlush]);
+
+  const getStats = useCallback((): UsageStats => {
+    return statsRef.current;
+  }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const stored = localStorage.getItem(localKey(uid));
+    if (stored) {
+      try {
+        statsRef.current = JSON.parse(stored) as UsageStats;
+      } catch {
+        statsRef.current = emptyStats();
+      }
+    }
+
+    loadUsageStats(uid).then(remote => {
+      if (remote) {
+        const local = statsRef.current;
+        const merged: UsageStats = {
+          totalActiveMs: Math.max(remote.totalActiveMs, local.totalActiveMs),
+          features: { ...remote.features },
+        };
+        for (const key of Object.keys(local.features) as FeatureKey[]) {
+          const lf = local.features[key]!;
+          const rf = remote.features[key];
+          if (!rf) {
+            merged.features[key] = lf;
+          } else {
+            merged.features[key] = {
+              count: Math.max(lf.count, rf.count),
+              lastUsed: lf.lastUsed > rf.lastUsed ? lf.lastUsed : rf.lastUsed,
+            };
+          }
+        }
+        statsRef.current = merged;
+        localStorage.setItem(localKey(uid), JSON.stringify(merged));
+      }
+    }).catch(() => {});
+
+    if (document.visibilityState === 'visible') {
+      visibilityStartRef.current = Date.now();
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        visibilityStartRef.current = Date.now();
+      } else {
+        if (visibilityStartRef.current !== null) {
+          statsRef.current.totalActiveMs += Date.now() - visibilityStartRef.current;
+          visibilityStartRef.current = null;
+          scheduleFirestoreFlush();
+        }
+      }
+    }
+
+    function onBeforeUnload() {
+      if (visibilityStartRef.current !== null) {
+        statsRef.current.totalActiveMs += Date.now() - visibilityStartRef.current;
+        visibilityStartRef.current = null;
+      }
+      flushToFirestore();
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      if (visibilityStartRef.current !== null) {
+        statsRef.current.totalActiveMs += Date.now() - visibilityStartRef.current;
+        visibilityStartRef.current = null;
+      }
+      if (firestoreTimer.current) clearTimeout(firestoreTimer.current);
+      flushToFirestore();
+    };
+  }, [uid, scheduleFirestoreFlush, flushToFirestore]);
+
+  return (
+    <UsageStatsContext.Provider value={{ trackEvent, getStats }}>
+      {children}
+    </UsageStatsContext.Provider>
+  );
+}
