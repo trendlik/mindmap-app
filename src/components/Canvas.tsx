@@ -139,6 +139,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const dragRef = useRef<DragState | null>(null);
   const pinchRef = useRef<PinchState | null>(null);
   const lastTapRef = useRef<{ time: number; nodeId: string | null }>({ time: 0, nodeId: null });
+  const lastCanvasTapRef = useRef<{ time: number }>({ time: 0 });
   const touchDragRef = useRef<DragState | null>(null);
   const viewRef = useRef({ tx, ty, scale });
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -206,6 +207,18 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const target = e.target as SVGElement;
     if (!target.closest('[data-node-id]')) {
       centerOnRoot();
+    }
+  }
+
+  function onSvgTouchEnd(e: React.TouchEvent<SVGSVGElement>) {
+    if ((e.target as Element).closest('[data-node-id]')) return;
+    const now = Date.now();
+    if (now - lastCanvasTapRef.current.time <= 300) {
+      centerOnRoot();
+      lastCanvasTapRef.current.time = 0;
+      e.preventDefault();
+    } else {
+      lastCanvasTapRef.current.time = now;
     }
   }
 
@@ -836,7 +849,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onWheel={onWheel}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        onTouchEnd={e => { onTouchEnd(e); onSvgTouchEnd(e); }}
       >
         <defs>
           <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto" overflow="visible">
