@@ -39,7 +39,7 @@ async function svgTransform(page: import('@playwright/test').Page): Promise<stri
  * then return the new transform string so tests can compare against it.
  */
 async function panAway(page: import('@playwright/test').Page): Promise<string> {
-  const svg = page.locator('svg').first();
+  const svg = page.locator('svg:has([data-node-id])');
   const box = await svg.boundingBox();
   if (!box) throw new Error('SVG not found');
 
@@ -62,45 +62,47 @@ async function panAway(page: import('@playwright/test').Page): Promise<string> {
  * CDP-based touch dispatch which may not reliably bubble to React's event
  * delegation root in some Playwright/Chromium versions.
  */
-async function doubleTap(page: import('@playwright/test').Page, x: number, y: number) {
+async function doubleTap(page: import('@playwright/test').Page, svgRelX: number, svgRelY: number) {
   await page.evaluate(({ x, y }) => {
-    const el = document.elementFromPoint(x, y) ?? document.body;
+    const svg = document.querySelector('svg:has([data-node-id])') as SVGSVGElement | null;
+    if (!svg) return Promise.resolve();
+    const rect = svg.getBoundingClientRect();
+    const cx = rect.left + x;
+    const cy = rect.top + y;
+
     function fireTap() {
       const touch = new Touch({
-        identifier: 1, target: el,
-        clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y,
+        identifier: 1, target: svg,
+        clientX: cx, clientY: cy, pageX: cx, pageY: cy, screenX: cx, screenY: cy,
         radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
       });
-      el.dispatchEvent(new TouchEvent('touchstart', {
+      svg.dispatchEvent(new TouchEvent('touchstart', {
         bubbles: true, cancelable: true, touches: [touch], changedTouches: [touch],
       }));
-      el.dispatchEvent(new TouchEvent('touchend', {
+      svg.dispatchEvent(new TouchEvent('touchend', {
         bubbles: true, cancelable: true, touches: [], changedTouches: [touch],
       }));
     }
-    fireTap(); // first tap — sets lastCanvasTapRef
+
+    fireTap();
     return new Promise<void>(resolve => {
-      setTimeout(() => { fireTap(); resolve(); }, 50); // second tap 50ms later — triggers centerOnRoot
+      setTimeout(() => { fireTap(); resolve(); }, 50);
     });
-  }, { x, y });
-  await page.waitForTimeout(100); // wait for React state to commit
+  }, { x: svgRelX, y: svgRelY });
+  await page.waitForTimeout(100);
 }
 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 test('touch double-tap on empty canvas changes the SVG transform', async ({ page }) => {
-  const svg = page.locator('svg').first();
-  const box = await svg.boundingBox();
-  if (!box) throw new Error('SVG not found');
+  const svg = page.locator('svg:has([data-node-id])');
 
   // Pan the view so we know the transform has a non-default value.
   await panAway(page);
   const pannedTransform = await svgTransform(page);
 
   // Double-tap an empty corner of the canvas (well away from any node).
-  const cornerX = box.x + 20;
-  const cornerY = box.y + 20;
-  await doubleTap(page, cornerX, cornerY);
+  await doubleTap(page, 50, 50);
 
   // Give React one frame to process the state update.
   await page.waitForTimeout(50);
@@ -112,17 +114,13 @@ test('touch double-tap on empty canvas changes the SVG transform', async ({ page
 });
 
 test('touch double-tap on empty canvas centres root node in SVG viewport', async ({ page }) => {
-  const svg = page.locator('svg').first();
-  const box = await svg.boundingBox();
-  if (!box) throw new Error('SVG not found');
+  const svg = page.locator('svg:has([data-node-id])');
 
   // Pan far away so root node is definitely off-centre.
   await panAway(page);
 
   // Double-tap an empty corner of the canvas.
-  const cornerX = box.x + 20;
-  const cornerY = box.y + 20;
-  await doubleTap(page, cornerX, cornerY);
+  await doubleTap(page, 50, 50);
 
   // Wait for the React state to propagate so the SVG group moves.
   await page.waitForTimeout(100);
@@ -133,6 +131,9 @@ test('touch double-tap on empty canvas centres root node in SVG viewport', async
 
   const nodeBox = await nodeGroup.boundingBox();
   if (!nodeBox) throw new Error('root node not found after double-tap');
+
+  const box = await svg.boundingBox();
+  if (!box) throw new Error('SVG not found');
 
   const nodeCentreX = nodeBox.x + nodeBox.width / 2;
   const nodeCentreY = nodeBox.y + nodeBox.height / 2;
@@ -145,10 +146,6 @@ test('touch double-tap on empty canvas centres root node in SVG viewport', async
 });
 
 test('touch double-tap on a node does NOT re-centre the view', async ({ page }) => {
-  const svg = page.locator('svg').first();
-  const box = await svg.boundingBox();
-  if (!box) throw new Error('SVG not found');
-
   // Pan slightly so fitView's 80 ms useEffect has already fired and settled
   // before we snapshot the transform. Without this, beforeTransform captures
   // the raw default (translate(0,0) scale(1)) and by the time afterTransform is
@@ -185,7 +182,7 @@ test('touch double-tap on a node does NOT re-centre the view', async ({ page }) 
 });
 
 test('single touch tap does NOT re-centre the view', async ({ page }) => {
-  const svg = page.locator('svg').first();
+  const svg = page.locator('svg:has([data-node-id])');
   const box = await svg.boundingBox();
   if (!box) throw new Error('SVG not found');
 
