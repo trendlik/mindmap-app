@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import type { MindMap } from '../store/useMindMapStore';
+import ConfirmDialog from './ConfirmDialog';
 import styles from './Sidebar.module.css';
 
 const MIN_WIDTH = 150;
@@ -127,6 +128,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
@@ -392,7 +394,11 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                     className={styles.delBtn}
                     onClick={e => {
                       e.stopPropagation();
-                      if (window.confirm(`Delete "${m.name}"?`)) onDelete(id, maps);
+                      setConfirmDialog({
+                        title: 'Delete map',
+                        message: `Delete "${m.name}"?`,
+                        onConfirm: () => { onDelete(id, maps); setConfirmDialog(null); },
+                      });
                     }}
                     title="Delete map"
                   >
@@ -538,6 +544,13 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
         </span>
       </div>
       <div className={styles.resizeHandle} onMouseDown={startResize} />
+      <ConfirmDialog
+        isOpen={confirmDialog !== null}
+        title={confirmDialog?.title ?? ''}
+        message={confirmDialog?.message ?? ''}
+        onConfirm={confirmDialog?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </aside>
   );
 }
