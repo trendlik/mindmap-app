@@ -202,7 +202,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   function onSvgDoubleClick(e: React.MouseEvent<SVGSVGElement>) {
     const target = e.target as SVGElement;
-    if (target === svgRef.current || target.tagName === 'svg' || (target.tagName === 'g' && !(target as unknown as HTMLElement).dataset.nodeId)) {
+    if (!target.closest('[data-node-id]')) {
       centerOnRoot();
     }
   }

@@ -158,6 +158,49 @@ test('panning away then double-clicking background re-centres on root', async ({
   expect(Math.abs(rootCyCentred - svgCy)).toBeLessThan(5);
 });
 
+test('double-clicking a tree edge re-centres on root', async ({ page }) => {
+  const svgEl = svg(page);
+
+  // Pan a significant distance away so root is clearly off-centre
+  await svgEl.hover({ position: { x: 640, y: 360 } });
+  await page.mouse.down();
+  await page.mouse.move(40, 60, { steps: 20 });
+  await page.mouse.up();
+
+  // Verify root is off-centre after panning
+  const svgBox = await svgEl.boundingBox();
+  const rootBoxPanned = await page
+    .locator(`[data-node-id="${TEST_IDS.rootNodeId}"]`)
+    .boundingBox();
+
+  if (!svgBox || !rootBoxPanned) throw new Error('could not get bounding boxes');
+
+  const svgCx = svgBox.x + svgBox.width / 2;
+  const svgCy = svgBox.y + svgBox.height / 2;
+  const rootCxPanned = rootBoxPanned.x + rootBoxPanned.width / 2;
+  const rootCyPanned = rootBoxPanned.y + rootBoxPanned.height / 2;
+
+  const distPanned = Math.hypot(rootCxPanned - svgCx, rootCyPanned - svgCy);
+  expect(distPanned).toBeGreaterThan(50);
+
+  // Locate a tree edge <path> (not inside a node group) and double-click it
+  const edgePath = page.locator('svg:has([data-node-id]) path').first();
+  await edgePath.dblclick();
+
+  // Root node must now be near the viewport centre
+  const rootBoxCentred = await page
+    .locator(`[data-node-id="${TEST_IDS.rootNodeId}"]`)
+    .boundingBox();
+
+  if (!rootBoxCentred) throw new Error('root node not found after centring');
+
+  const rootCxCentred = rootBoxCentred.x + rootBoxCentred.width / 2;
+  const rootCyCentred = rootBoxCentred.y + rootBoxCentred.height / 2;
+
+  expect(Math.abs(rootCxCentred - svgCx)).toBeLessThan(5);
+  expect(Math.abs(rootCyCentred - svgCy)).toBeLessThan(5);
+});
+
 test('double-click centring preserves the current zoom level', async ({ page }) => {
   const svgEl = svg(page);
 
