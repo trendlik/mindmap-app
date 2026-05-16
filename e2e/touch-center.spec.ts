@@ -8,8 +8,9 @@
  * instead), and a single tap does NOT re-centre.
  *
  * Test setup notes:
- *  - `test.use({ hasTouch: true, isMobile: true })` is required so that
- *    `page.touchscreen.tap()` fires real touchstart/touchend events.
+ *  - `test.use({ hasTouch: true })` is required so that `page.touchscreen.tap()`
+ *    fires real touchstart/touchend events. isMobile is intentionally omitted
+ *    so that mouse events (used by panAway()) still work.
  *  - The shared fixture seeds a single map with the root node at world coords
  *    (500, 300) and an identity transform (tx=0, ty=0, scale=1).
  *  - The SVG transform group is `<g transform="translate(tx,ty) scale(s)">`.
@@ -21,7 +22,11 @@
 import { test, expect, TEST_IDS } from './fixtures';
 
 // Enable touch mode for every test in this file.
-test.use({ hasTouch: true, isMobile: true });
+// NOTE: hasTouch: true is sufficient for page.touchscreen.tap() to fire real
+// touchstart/touchend events. isMobile: true is intentionally omitted because
+// Playwright's mobile simulation suppresses mouse events, which breaks the
+// panAway() helper that uses page.mouse.down/move/up.
+test.use({ hasTouch: true });
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -128,7 +133,11 @@ test('touch double-tap on a node does NOT re-centre the view', async ({ page }) 
   const box = await svg.boundingBox();
   if (!box) throw new Error('SVG not found');
 
-  // Capture the transform before the gesture.
+  // Pan slightly so fitView's 80 ms useEffect has already fired and settled
+  // before we snapshot the transform. Without this, beforeTransform captures
+  // the raw default (translate(0,0) scale(1)) and by the time afterTransform is
+  // read, fitView has already changed it — causing a spurious mismatch.
+  await panAway(page);
   const beforeTransform = await svgTransform(page);
 
   // Locate the root node and tap it twice (double-tap on the node).
