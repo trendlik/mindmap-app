@@ -38,7 +38,6 @@ test('pressing Escape during rename cancels the edit', async ({ page }) => {
 test('deletes a map when there are multiple maps', async ({ page }) => {
   page.on('dialog', async (dialog) => {
     if (dialog.type() === 'prompt') await dialog.accept('Map B');
-    else await dialog.accept();
   });
   await page.getByTitle('New map').click();
   await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
@@ -49,6 +48,9 @@ test('deletes a map when there are multiple maps', async ({ page }) => {
   // The delete button sits in the same .item parent as the name span
   const deleteBtn = nameSpan.locator('..').getByTitle('Delete map');
   await deleteBtn.click();
+
+  // Confirm the custom dialog
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
 
   await expect(page.locator('aside nav').getByText('my first map')).not.toBeVisible();
   await expect(page.locator('aside').getByText('1 map')).toBeVisible();
