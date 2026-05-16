@@ -195,8 +195,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nty = r.height / 2 - ((minY + maxY) / 2) * ns;
     setTx(ntx); setTy(nty); setScale(ns);
     onSaveView(map.id, ntx, nty, ns);
-    trackEvent('fitView');
-  }, [map, onSaveView, trackEvent]);
+  }, [map, onSaveView]);
 
   function centerOnRoot() {
     if (!map || !svgRef.current) return;
@@ -373,7 +372,6 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     setMultiSelected(new Set());
     if (notesOpen) setNotesNodeId(nodeId);
     dragRef.current = { id: nodeId, ox: w.x - n.x, oy: w.y - n.y, moved: false };
-    trackEvent('nodeDrag');
   }
 
   function onLinkClick(e: React.MouseEvent, linkId: string) {
@@ -447,6 +445,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       }
       if (dragRef.current?.moved && map) {
         onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
+        trackEvent('nodeDrag');
       }
       if (panRef.current && map) {
         onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
@@ -703,9 +702,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function finishEdit() {
     if (!editingId) return;
     const v = editValue.trim();
-    if (v) onUpdateNode(map!.id, editingId, { label: v });
+    if (v) { onUpdateNode(map!.id, editingId, { label: v }); trackEvent('nodeInlineEdit'); }
     setEditingId(null);
-    trackEvent('nodeInlineEdit');
   }
 
   function addChild() {
@@ -794,7 +792,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!svgRef.current || !map) return;
     const r = svgRef.current.getBoundingClientRect();
     onAutoLayout(map.id, r.height, scale, ty);
-    setTimeout(fitView, 80);
+    setTimeout(() => { fitView(); trackEvent('fitView'); }, 80);
   }
 
   function startLinking() {
@@ -1179,7 +1177,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         canUndo={canUndo}
         canRedo={canRedo}
         onLayout={handleLayout}
-        onFitView={fitView}
+        onFitView={() => { fitView(); trackEvent('fitView'); }}
         onExportJson={() => onExportJson(map)}
         onExportImg={() => onExportImg(map)}
       />
