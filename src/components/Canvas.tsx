@@ -197,10 +197,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const root = Object.values(map.nodes).find(n => n.parentId === null);
     if (!root) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const ntx = rect.width / 2 - root.x * scale;
-    const nty = rect.height / 2 - root.y * scale;
+    const ntx = rect.width / 2 - root.x * viewRef.current.scale;
+    const nty = rect.height / 2 - root.y * viewRef.current.scale;
     setTx(ntx); setTy(nty);
-    onSaveView(map.id, ntx, nty, scale);
+    onSaveView(map.id, ntx, nty, viewRef.current.scale);
   }
 
   function onSvgDoubleClick(e: React.MouseEvent<SVGSVGElement>) {
@@ -211,6 +211,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   }
 
   function onSvgTouchEnd(e: React.TouchEvent<SVGSVGElement>) {
+    if (e.touches.length !== 0) return; // ignore finger-lift mid-pinch
     if ((e.target as Element).closest('[data-node-id]')) return;
     const now = Date.now();
     if (now - lastCanvasTapRef.current.time <= 300) {
