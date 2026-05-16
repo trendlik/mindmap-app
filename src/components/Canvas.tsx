@@ -189,6 +189,24 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     onSaveView(map.id, ntx, nty, ns);
   }, [map, onSaveView]);
 
+  function centerOnRoot() {
+    if (!map || !svgRef.current) return;
+    const root = Object.values(map.nodes).find(n => n.parentId === null);
+    if (!root) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const ntx = rect.width / 2 - root.x * scale;
+    const nty = rect.height / 2 - root.y * scale;
+    setTx(ntx); setTy(nty);
+    onSaveView(map.id, ntx, nty, scale);
+  }
+
+  function onSvgDoubleClick(e: React.MouseEvent<SVGSVGElement>) {
+    const target = e.target as SVGElement;
+    if (target === svgRef.current || target.tagName === 'svg' || (target.tagName === 'g' && !(target as unknown as HTMLElement).dataset.nodeId)) {
+      centerOnRoot();
+    }
+  }
+
   useEffect(() => {
     if (map && (map.tx === 0 && map.ty === 0 && map.scale === 1)) {
       const t = setTimeout(fitView, 80);
@@ -791,6 +809,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         ref={svgRef}
         className={`${styles.svg} ${panRef.current ? styles.grabbing : ''} ${(linkingFrom || reparentingFrom) ? styles.linking : ''}`}
         onMouseDown={onSvgMouseDown}
+        onDoubleClick={onSvgDoubleClick}
         onWheel={onWheel}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
