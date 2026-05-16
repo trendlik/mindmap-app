@@ -183,9 +183,10 @@ test('double-clicking a tree edge re-centres on root', async ({ page }) => {
   const distPanned = Math.hypot(rootCxPanned - svgCx, rootCyPanned - svgCy);
   expect(distPanned).toBeGreaterThan(50);
 
-  // Locate a tree edge <path> (not inside a node group) and double-click it
-  const edgePath = page.locator('svg:has([data-node-id]) path').first();
-  await edgePath.dblclick();
+  // Double-click on the far-right empty canvas area (no node there) via coordinates.
+  // Targeting a <path> element directly is unreliable because the only paths in a
+  // single-node map are invisible arrowhead markers inside <defs>.
+  await page.mouse.dblclick(svgBox.x + svgBox.width * 0.85, svgBox.y + svgBox.height * 0.5);
 
   // Root node must now be near the viewport centre
   const rootBoxCentred = await page
