@@ -45,6 +45,7 @@ export interface MindMap {
   tx: number;
   ty: number;
   scale: number;
+  updatedAt?: number;
 }
 
 export type MapsRecord = Record<string, MindMap>;
@@ -159,6 +160,7 @@ function defaultMaps(): MapsRecord {
       nodes: { [rootId]: makeRootNode(rootId, 'my first map') },
       edges: [],
       tx: 0, ty: 0, scale: 1,
+      updatedAt: Date.now(),
     },
   };
 }
@@ -291,10 +293,10 @@ export function useMindMapStore(userId: string | null) {
     setMaps(prev => {
       const m = prev[mapId];
       if (!m) return prev;
-      // Push snapshot before mutation
       undoStack.current = [...undoStack.current.slice(-(MAX_UNDO - 1)), { mapId, snapshot: m }];
       redoStack.current = [];
-      const next = { ...prev, [mapId]: updater(m) };
+      const updated = updater(m);
+      const next = { ...prev, [mapId]: { ...updated, updatedAt: Date.now() } };
       persist(next, mapId);
       return next;
     });
@@ -309,7 +311,7 @@ export function useMindMapStore(userId: string | null) {
       if (current) {
         redoStack.current = [...redoStack.current, { mapId: entry.mapId, snapshot: current }];
       }
-      const next = { ...prev, [entry.mapId]: entry.snapshot };
+      const next = { ...prev, [entry.mapId]: { ...entry.snapshot, updatedAt: Date.now() } };
       persist(next, entry.mapId);
       return next;
     });
@@ -324,7 +326,7 @@ export function useMindMapStore(userId: string | null) {
       if (current) {
         undoStack.current = [...undoStack.current, { mapId: entry.mapId, snapshot: current }];
       }
-      const next = { ...prev, [entry.mapId]: entry.snapshot };
+      const next = { ...prev, [entry.mapId]: { ...entry.snapshot, updatedAt: Date.now() } };
       persist(next, entry.mapId);
       return next;
     });
@@ -345,6 +347,7 @@ export function useMindMapStore(userId: string | null) {
       nodes: { [rootId]: makeRootNode(rootId, label) },
       edges: [],
       tx: 0, ty: 0, scale: 1,
+      updatedAt: Date.now(),
     };
     setMaps(prev => {
       const next = { ...prev, [mapId]: newMap };

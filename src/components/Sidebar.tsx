@@ -7,6 +7,9 @@ import styles from './Sidebar.module.css';
 const MIN_WIDTH = 150;
 const MAX_WIDTH = 400;
 
+const VALID_SORT_KEYS = ['manual', 'name-asc', 'name-desc', 'updated-desc', 'updated-asc'] as const;
+type SortKey = typeof VALID_SORT_KEYS[number];
+
 interface NodeHit {
   nodeId: string;
   text: string;
@@ -125,6 +128,10 @@ function computeNodeHits(
 }
 
 export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, onWidthChange, onNodeFocus, onHighlightQueryChange, user, onSignOut }: SidebarProps) {
+  const [sortKey, setSortKey] = useState<SortKey>(() => {
+    const stored = localStorage.getItem('mindmap_sort_pref');
+    return (VALID_SORT_KEYS as readonly string[]).includes(stored ?? '') ? stored as SortKey : 'manual';
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [width, setWidth] = useState(210);
@@ -219,7 +226,16 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     onHighlightQueryChange(nodeMatch ? nodeMatch[1].trim() : q);
   }, [q, onHighlightQueryChange]);
 
-  const filteredIds = applySearch(maps, mapOrder, q);
+  const filteredIds = (() => {
+    const ids = applySearch(maps, mapOrder, q);
+    if (sortKey === 'manual') return ids;
+    return [...ids].sort((a, b) => {
+      if (sortKey === 'name-asc') return maps[a].name.toLowerCase().localeCompare(maps[b].name.toLowerCase());
+      if (sortKey === 'name-desc') return maps[b].name.toLowerCase().localeCompare(maps[a].name.toLowerCase());
+      if (sortKey === 'updated-desc') return (maps[b].updatedAt ?? 0) - (maps[a].updatedAt ?? 0);
+      return (maps[a].updatedAt ?? 0) - (maps[b].updatedAt ?? 0);
+    });
+  })();
   const nodeHits = computeNodeHits(maps, filteredIds, q);
   const archivedIds = mapOrder.filter(id => maps[id]?.archived);
 
@@ -243,6 +259,22 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     <aside className={styles.sidebar} style={{ width, minWidth: width }}>
       <div className={styles.header}>
         <span className={styles.title}>maps</span>
+        <select
+          className={styles.sortSelect}
+          value={sortKey}
+          onChange={e => {
+            const val = e.target.value as typeof sortKey;
+            setSortKey(val);
+            localStorage.setItem('mindmap_sort_pref', val);
+          }}
+          title="Sort order"
+        >
+          <option value="manual">Manual order</option>
+          <option value="name-asc">Name A→Z</option>
+          <option value="name-desc">Name Z→A</option>
+          <option value="updated-desc">Recently updated</option>
+          <option value="updated-asc">Least recently updated</option>
+        </select>
         <button className={styles.newBtn} onClick={handleNewMap} title="New map">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -292,12 +324,12 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
           const isMapFocused = focusedResultIndex === mapResultIndex && mapResultIndex >= 0;
           return (
             <div key={id} className={styles.itemWrap}>
-              {dropIndex === index && draggedId !== id && (
+              {sortKey === 'manual' && dropIndex === index && draggedId !== id && (
                 <div className={styles.dropLine} />
               )}
               <div
                 className={`${styles.item} ${id === activeMapId ? styles.active : ''} ${isDragged ? styles.dragging : ''} ${isMapFocused ? styles.itemFocused : ''}`}
-                draggable={editingId !== id}
+                draggable={sortKey === 'manual' && editingId !== id}
                 onClick={() => {
                   if (clickTimer.current) clearTimeout(clickTimer.current);
                   clickTimer.current = setTimeout(() => onSelect(id), 220);
@@ -306,30 +338,27 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
                   startRename(id, m.name);
                 }}
-                onDragStart={e => {
+                onDragStart={sortKey !== 'manual' ? undefined : e => {
                   setDraggedId(id);
                   e.dataTransfer.effectAllowed = 'move';
                 }}
-                onDragEnd={() => {
+                onDragEnd={sortKey !== 'manual' ? undefined : () => {
                   setDraggedId(null);
                   setDropIndex(null);
                 }}
-                onDragOver={e => {
+                onDragOver={sortKey !== 'manual' ? undefined : e => {
                   e.preventDefault();
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   const mid = rect.top + rect.height / 2;
                   setDropIndex(e.clientY < mid ? index : index + 1);
                 }}
-                onDrop={e => {
+                onDrop={sortKey !== 'manual' ? undefined : e => {
                   e.preventDefault();
                   if (!draggedId || draggedId === id) return;
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   const mid = rect.top + rect.height / 2;
                   const insertAt = e.clientY < mid ? index : index + 1;
                   const newOrder = mapOrder.filter(oid => oid !== draggedId);
-                  // Convert filteredIds insertion index → mapOrder position.
-                  // filteredIds[insertAt] is the item that should follow the dropped card.
-                  // If it's the dragged card itself or past the end, insert after the last active item.
                   const anchorId = insertAt < filteredIds.length ? filteredIds[insertAt] : null;
                   let targetIndex: number;
                   if (anchorId != null && anchorId !== draggedId) {
@@ -472,7 +501,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
             </div>
           );
         })}
-        {dropIndex === filteredIds.length && draggedId && (
+        {sortKey === 'manual' && dropIndex === filteredIds.length && draggedId && (
           <div className={styles.dropLine} />
         )}
       </nav>

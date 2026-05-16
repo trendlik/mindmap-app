@@ -24,6 +24,24 @@
   color: var(--text-tertiary);
 }
 
+.sortSelect {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0 2px;
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sortSelect:hover {
+  color: var(--text-secondary);
+}
+
 .newBtn {
   width: 24px;
   height: 24px;
