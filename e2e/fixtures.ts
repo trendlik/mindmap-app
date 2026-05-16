@@ -40,7 +40,10 @@ export const test = base.extend({
             links: [],
             tx: 0,
             ty: 0,
-            scale: 1,
+            // Use 0.999 (not 1) so the Canvas auto-fitView effect
+            // (fires when tx===0 && ty===0 && scale===1) does not race
+            // against test operations.
+            scale: 0.999,
           },
         },
         mapOrder: [params.mapId],

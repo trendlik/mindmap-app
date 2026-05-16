@@ -110,8 +110,10 @@ test('double-clicking a node does NOT centre the view — rename input appears i
   const transformAfter = await transformG(page).getAttribute('transform');
   expect(transformAfter).toBe(transformBefore);
 
-  // Clean up — dismiss the edit input
-  await page.keyboard.press('Escape');
+  // Clean up — dismiss the edit input.
+  // Use locator.press() to dispatch directly to the input element; page.keyboard.press()
+  // requires focus which can be unreliable in headless parallel runs.
+  await canvasEditInput(page).press('Escape');
   await expect(canvasEditInput(page)).not.toBeVisible();
 });
 
