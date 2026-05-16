@@ -1,6 +1,6 @@
 # Mind Map App
 
-A freeform mind mapping app built with React. Supports multiple maps, persistent storage, pan/zoom canvas, and export.
+A freeform mind mapping app built with React 18 + TypeScript. Supports multiple maps, Google sign-in, cloud sync via Firestore, pan/zoom canvas, and export.
 
 ## Getting started
 
@@ -8,6 +8,8 @@ A freeform mind mapping app built with React. Supports multiple maps, persistent
 npm install
 npm run dev
 ```
+
+Copy `.env.example` to `.env.local` and fill in your Firebase project values before running.
 
 ## Build for production
 
@@ -18,32 +20,46 @@ npm run preview   # serve the build locally
 
 ## Features
 
-- Multiple maps — create, rename (double-click), delete from the sidebar
-- Freeform canvas — drag nodes anywhere, scroll to zoom, drag canvas to pan
-- Add nodes — select a node, then use `+ child` or `+ sibling` in the toolbar
-- Edit nodes — double-click any node to rename inline
-- Auto-layout — arranges all nodes into a clean tree
-- Fit view — zooms to show all nodes
-- Export — download as JSON (for re-importing) or SVG (for sharing)
-- Persistent — all maps saved to localStorage automatically
+- **Google sign-in** — authenticate with your Google account; each user's maps are stored privately in Firestore
+- **Cloud sync** — maps persist to Firestore in real-time; localStorage is used as a fast local cache
+- **Multiple maps** — create, rename (double-click), delete from the sidebar
+- **Global search** — search across map names, node labels, and notes; supports `label:tag` syntax
+- **Freeform canvas** — drag nodes anywhere, scroll to zoom, drag canvas to pan
+- **Add nodes** — select a node, then use `+ child` or `+ sibling` in the toolbar
+- **Edit nodes** — double-click any node to rename inline
+- **Notes panel** — attach freeform notes to any node
+- **Auto-layout** — arranges all nodes into a clean tree
+- **Fit view** — zooms to show all nodes
+- **Re-centre** — double-click the empty canvas (or double-tap on mobile) to snap back to the root node
+- **Export** — download as JSON (for re-importing) or SVG (for sharing)
 
 ## Project structure
 
 ```
 src/
-  App.jsx                  Root component
+  App.tsx                       Root component
   App.module.css
-  index.js
-  index.css                Design tokens + global styles
+  index.tsx
+  index.css                     Design tokens + global styles
+  firebase.ts                   Firebase initialisation
+  contexts/
+    AuthContext.tsx              Auth state provider (Google sign-in)
   store/
-    useMindMapStore.js     All state logic + localStorage persistence
+    useMindMapStore.ts           All state logic + dual localStorage/Firestore persistence
+    firestoreSync.ts             Firestore real-time sync helpers
   components/
-    Canvas.jsx             SVG canvas with pan/zoom/drag/edit
+    AuthGate.tsx                 Sign-in screen shown when unauthenticated
+    AuthGate.module.css
+    Canvas.tsx                   SVG canvas with pan/zoom/drag/edit
     Canvas.module.css
-    Sidebar.jsx            Map list with create/rename/delete
+    ConfirmDialog.tsx            Custom modal replacing native confirm()
+    ConfirmDialog.module.css
+    NotesPanel.tsx               Per-node notes editor
+    NotesPanel.module.css
+    Sidebar.tsx                  Map list with create/rename/delete + search
     Sidebar.module.css
-    Toolbar.jsx            Action buttons
+    Toolbar.tsx                  Action buttons
     Toolbar.module.css
   utils/
-    export.js              JSON and SVG export
+    export.ts                    JSON and SVG export
 ```
