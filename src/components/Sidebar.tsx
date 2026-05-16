@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import type { MindMap } from '../store/useMindMapStore';
+import { useUsageStats } from '../contexts/UsageStatsContext';
 import ConfirmDialog from './ConfirmDialog';
+import StatsPanel from './StatsPanel';
 import styles from './Sidebar.module.css';
 
 const MIN_WIDTH = 150;
@@ -128,6 +130,7 @@ function computeNodeHits(
 }
 
 export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, onWidthChange, onNodeFocus, onHighlightQueryChange, user, onSignOut }: SidebarProps) {
+  const { trackEvent } = useUsageStats();
   const [sortKey, setSortKey] = useState<SortKey>(() => {
     const stored = localStorage.getItem('mindmap_sort_pref');
     return (VALID_SORT_KEYS as readonly string[]).includes(stored ?? '') ? stored as SortKey : 'manual';
@@ -141,6 +144,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState('');
   const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
+  const [statsOpen, setStatsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -148,6 +152,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const onWidthChangeRef = useRef(onWidthChange);
   onWidthChangeRef.current = onWidthChange;
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTrackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drag & drop state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -287,7 +292,17 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
           className={styles.searchInput}
           placeholder="Search maps, nodes… or label:tag"
           value={searchQuery}
-          onChange={e => { setSearchQuery(e.target.value); setFocusedResultIndex(-1); }}
+          onChange={e => {
+            setSearchQuery(e.target.value);
+            setFocusedResultIndex(-1);
+            if (e.target.value.trim()) {
+              if (searchTrackTimer.current) clearTimeout(searchTrackTimer.current);
+              searchTrackTimer.current = setTimeout(() => {
+                trackEvent('search');
+                searchTrackTimer.current = null;
+              }, 500);
+            }
+          }}
           aria-label="Search maps"
           onKeyDown={e => {
             if (e.key === 'ArrowDown') {
@@ -548,9 +563,16 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
       <div className={styles.footer}>
         {user && (
           <div className={styles.userRow}>
-            {user.photoURL && (
-              <img className={styles.avatar} src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-            )}
+            <button
+              className={styles.avatarBtn}
+              onClick={() => setStatsOpen(true)}
+              title="View usage stats"
+            >
+              {user.photoURL
+                ? <img className={styles.avatar} src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+                : <span className={styles.avatarPlaceholder}>{(user.displayName || user.email || '?')[0].toUpperCase()}</span>
+              }
+            </button>
             <span className={styles.userName}>{user.displayName || user.email}</span>
             <button className={styles.signOutBtn} onClick={onSignOut} title="Sign out">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -580,6 +602,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
         onConfirm={confirmDialog?.onConfirm ?? (() => {})}
         onCancel={() => setConfirmDialog(null)}
       />
+      {statsOpen && <StatsPanel onClose={() => setStatsOpen(false)} />}
     </aside>
   );
 }

@@ -211,10 +211,43 @@
   gap: 8px;
 }
 
+.avatarBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s;
+}
+
+.avatarBtn:hover {
+  opacity: 0.75;
+}
+
 .avatar {
   width: 20px;
   height: 20px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.avatarPlaceholder {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 

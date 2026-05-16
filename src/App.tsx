@@ -1,14 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useMindMapStore } from './store/useMindMapStore';
+import type { MindMap } from './store/useMindMapStore';
+import { UsageStatsProvider, useUsageStats } from './contexts/UsageStatsContext';
 import AuthGate from './components/AuthGate';
 import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
 import { exportJson, exportSvg } from './utils/export';
 import styles from './App.module.css';
 
-export default function App() {
+function AppInner() {
   const { user, signOut } = useAuth();
+  const { trackEvent } = useUsageStats();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(210);
   const [focusedNode, setFocusedNode] = useState<{ mapId: string; nodeId: string } | null>(null);
@@ -71,16 +74,35 @@ export default function App() {
 
   const handleSelectMap = useCallback((mapId: string) => {
     switchMap(mapId);
+    trackEvent('switchMap');
     setFocusedNode(null);
     if (window.innerWidth <= 640) setSidebarOpen(false);
-  }, [switchMap]);
+  }, [switchMap, trackEvent]);
 
   const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
     if (mapId !== activeMapId) switchMap(mapId);
     setFocusedNode({ mapId, nodeId });
-    // Derive highlight query from the current search — strip prefix if present
-    // (App doesn't have direct access to the search string, so Canvas derives from focusNodeId)
   }, [activeMapId, switchMap]);
+
+  const handleCreateMap = useCallback((name?: string) => {
+    createMap(name);
+    trackEvent('createMap');
+  }, [createMap, trackEvent]);
+
+  const handleDeleteMap = useCallback((mapId: string, mapsRecord: Record<string, MindMap>) => {
+    deleteMap(mapId, mapsRecord);
+    trackEvent('deleteMap');
+  }, [deleteMap, trackEvent]);
+
+  const handleRenameMap = useCallback((mapId: string, name: string) => {
+    renameMap(mapId, name);
+    trackEvent('renameMap');
+  }, [renameMap, trackEvent]);
+
+  const handleSetArchived = useCallback((mapId: string, archived: boolean) => {
+    setMapArchived(mapId, archived);
+    if (archived) trackEvent('archiveMap');
+  }, [setMapArchived, trackEvent]);
 
   return (
     <AuthGate>
@@ -103,12 +125,12 @@ export default function App() {
             mapOrder={mapOrder}
             activeMapId={activeMapId}
             onSelect={handleSelectMap}
-            onCreate={createMap}
-            onDelete={deleteMap}
-            onRename={renameMap}
+            onCreate={handleCreateMap}
+            onDelete={handleDeleteMap}
+            onRename={handleRenameMap}
             onUpdateLabels={(mapId, labels) => updateMapLabels(mapId, labels)}
             onReorder={reorderMaps}
-            onSetArchived={(mapId, archived) => setMapArchived(mapId, archived)}
+            onSetArchived={handleSetArchived}
             onWidthChange={setSidebarWidth}
             onNodeFocus={handleNodeFocus}
             onHighlightQueryChange={setHighlightQuery}
@@ -139,5 +161,14 @@ export default function App() {
         />
       </div>
     </AuthGate>
+  );
+}
+
+export default function App() {
+  const { user } = useAuth();
+  return (
+    <UsageStatsProvider uid={user?.uid ?? null}>
+      <AppInner />
+    </UsageStatsProvider>
   );
 }

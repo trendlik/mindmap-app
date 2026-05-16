@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
+import { useUsageStats } from '../contexts/UsageStatsContext';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
 import ConfirmDialog from './ConfirmDialog';
@@ -32,6 +33,7 @@ interface PanState {
   cy: number;
   tx: number;
   ty: number;
+  hasMoved: boolean;
 }
 
 interface DragState {
@@ -107,6 +109,7 @@ function findSpatialNeighbor(
 }
 
 export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, highlightQuery, focusNodeId }: CanvasProps) {
+  const { trackEvent } = useUsageStats();
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
   const [ty, setTy] = useState(map?.ty ?? 0);
@@ -308,7 +311,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setSelectedId(null);
       setSelectedLinkId(null);
       setMultiSelected(new Set());
-      panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
+      panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty, hasMoved: false };
     }
   }
 
@@ -414,6 +417,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         const { cx, cy } = getSVGXY(e);
         const ntx = panRef.current.tx + (cx - panRef.current.cx);
         const nty = panRef.current.ty + (cy - panRef.current.cy);
+        panRef.current.hasMoved = true;
         setTx(ntx); setTy(nty);
       }
     }
@@ -442,8 +446,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       }
       if (dragRef.current?.moved && map) {
         onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
+        trackEvent('nodeDrag');
       }
       if (panRef.current && map) {
+        if (panRef.current.hasMoved) trackEvent('pan');
         onSaveView(map.id, viewRef.current.tx, viewRef.current.ty, viewRef.current.scale);
       }
       dragRef.current = null;
@@ -463,10 +469,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undoRef.current();
+        trackEvent('undo');
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
         redoRef.current();
+        trackEvent('redo');
       }
       if (!editingIdRef.current && !isEditable) {
         if (e.key === 'Tab') {
@@ -533,6 +541,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
     setTx(ntx); setTy(nty); setScale(ns);
     onSaveView(map!.id, ntx, nty, ns);
+    trackEvent('zoom');
   }
 
   function zoomBy(delta: number) {
@@ -615,7 +624,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (reparentingFrom) { setReparentingFrom(null); return; }
         setSelectedId(null);
         setSelectedLinkId(null);
-        panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty };
+        panRef.current = { cx, cy, tx: viewRef.current.tx, ty: viewRef.current.ty, hasMoved: false };
         lastTapRef.current = { time: 0, nodeId: null };
       }
     }
@@ -695,7 +704,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function finishEdit() {
     if (!editingId) return;
     const v = editValue.trim();
-    if (v) onUpdateNode(map!.id, editingId, { label: v });
+    if (v) { onUpdateNode(map!.id, editingId, { label: v }); trackEvent('nodeInlineEdit'); }
     setEditingId(null);
   }
 
@@ -708,6 +717,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const grandparent = p.parentId ? map.nodes[p.parentId] : null;
     const xOffset = grandparent && p.x < grandparent.x ? -190 : 190;
     const id = onAddNode(map.id, 'new idea', p.x + xOffset, p.y + ch.length * 55 - (ch.length - 1) * 27, pid, (p.depth || 0) + 1);
+    trackEvent('addChild');
     setSelectedId(id);
     setTimeout(() => {
       const n = map.nodes[id] || { label: 'new idea', x: p.x + xOffset, y: p.y };
@@ -725,6 +735,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!map || !selectedId) return;
     const n = map.nodes[selectedId];
     const id = onAddNode(map.id, 'new idea', n.x, n.y + 55, n.parentId, n.depth);
+    trackEvent('addSibling');
     setSelectedId(id);
     setTimeout(() => {
       const { w, h } = measureNode('new idea');
@@ -764,7 +775,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     setConfirmDialog({
       title: 'Delete node',
       message: `Delete "${node.label}"?`,
-      onConfirm: () => { onDeleteNode(map.id, nodeId, map.nodes, map.edges); setSelectedId(null); if (shouldCloseNotes) { setNotesOpen(false); setNotesNodeId(null); } setConfirmDialog(null); },
+      onConfirm: () => { onDeleteNode(map.id, nodeId, map.nodes, map.edges); setSelectedId(null); if (shouldCloseNotes) { setNotesOpen(false); setNotesNodeId(null); } setConfirmDialog(null); trackEvent('deleteNode'); },
     });
     return;
   }
@@ -783,7 +794,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     if (!svgRef.current || !map) return;
     const r = svgRef.current.getBoundingClientRect();
     onAutoLayout(map.id, r.height, scale, ty);
-    setTimeout(fitView, 80);
+    setTimeout(() => { fitView(); trackEvent('fitView'); }, 80);
   }
 
   function startLinking() {
@@ -1168,7 +1179,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         canUndo={canUndo}
         canRedo={canRedo}
         onLayout={handleLayout}
-        onFitView={fitView}
+        onFitView={() => { fitView(); trackEvent('fitView'); }}
         onExportJson={() => onExportJson(map)}
         onExportImg={() => onExportImg(map)}
       />
