@@ -5,6 +5,7 @@ import { useUsageStats } from '../contexts/UsageStatsContext';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
 import ConfirmDialog from './ConfirmDialog';
+import KeyboardShortcutsModal from './KeyboardShortcutsModal';
 import styles from './Canvas.module.css';
 
 interface CanvasProps {
@@ -141,10 +142,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [inMapSearchOpen, setInMapSearchOpen] = useState(false);
   const [inMapSearchQuery, setInMapSearchQuery] = useState('');
   const inMapSearchInputRef = useRef<HTMLInputElement>(null);
   const inMapSearchOpenRef = useRef(false);
+  const shortcutsOpenRef = useRef(false);
 
   const panRef = useRef<PanState | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -475,6 +478,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         return;
       }
       if (e.key === 'Escape') {
+        if (shortcutsOpenRef.current) { setShortcutsOpen(false); return; }
         if (inMapSearchOpenRef.current) {
           setInMapSearchOpen(false);
           setInMapSearchQuery('');
@@ -486,6 +490,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       }
       const tag = (document.activeElement?.tagName || '').toLowerCase();
       const isEditable = tag === 'input' || tag === 'textarea' || (document.activeElement as HTMLElement)?.isContentEditable;
+      if (e.key === '?' && !editingIdRef.current && !isEditable) {
+        setShortcutsOpen(true);
+        return;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && !editingIdRef.current && !isEditable) {
         deleteSelectedRef.current();
       }
@@ -817,6 +825,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   addSiblingRef.current = addSibling;
   startLinkingRef.current = startLinking;
   inMapSearchOpenRef.current = inMapSearchOpen;
+  shortcutsOpenRef.current = shortcutsOpen;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
@@ -1249,6 +1258,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onFitView={() => { fitView(); trackEvent('fitView'); }}
         onExportJson={() => onExportJson(map)}
         onExportImg={() => onExportImg(map)}
+        onShowShortcuts={() => setShortcutsOpen(true)}
       />
 
       {notesOpen && notesNodeId && map.nodes[notesNodeId] && (
@@ -1294,6 +1304,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onConfirm={confirmDialog?.onConfirm ?? (() => {})}
         onCancel={() => setConfirmDialog(null)}
       />
+      {shortcutsOpen && <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />}
     </div>
   );
 }

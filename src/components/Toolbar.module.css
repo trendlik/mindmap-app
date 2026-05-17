@@ -81,6 +81,14 @@
   border-color: var(--accent);
 }
 
+/* Hide the shortcuts button on touch devices — keyboard shortcuts aren't available there */
+@media (hover: none) {
+  .shortcutsBtn,
+  .shortcutsSep {
+    display: none;
+  }
+}
+
 /* Mobile toolbar: scrollable, icon-only, bigger tap targets */
 @media (max-width: 640px) {
   .toolbar {
