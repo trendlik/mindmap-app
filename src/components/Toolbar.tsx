@@ -27,6 +27,7 @@ interface ToolbarProps {
   onFitView: () => void;
   onExportJson: () => void;
   onExportImg: () => void;
+  onShowShortcuts: () => void;
   hasSelected: boolean;
   notesOpen: boolean;
   isLinking: boolean;
@@ -46,7 +47,7 @@ export default function Toolbar(props: ToolbarProps) {
     onToggleArrowFrom, onToggleArrowTo, onSetArrowFrom, onSetArrowTo, onSetLinkLabel,
     onToggleCollapse, canCollapse, isCollapsed,
     onUndo, onRedo, canUndo, canRedo,
-    onLayout, onFitView, onExportJson, onExportImg,
+    onLayout, onFitView, onExportJson, onExportImg, onShowShortcuts,
     hasSelected, notesOpen, isLinking, isReparenting, canReparent,
     selectedLink, linkArrowFrom, linkArrowTo, linkStroke,
   } = props;
@@ -185,6 +186,8 @@ export default function Toolbar(props: ToolbarProps) {
       <div className={styles.sep} />
       <button className={styles.btn} onClick={() => { onExportJson(); trackEvent('exportJson'); }}>JSON</button>
       <button className={styles.btn} onClick={() => { onExportImg(); trackEvent('exportSvg'); }}>SVG</button>
+      <div className={`${styles.sep} ${styles.shortcutsSep}`} />
+      <button className={`${styles.btn} ${styles.shortcutsBtn}`} onClick={onShowShortcuts} title="Keyboard shortcuts (?)">?</button>
     </div>
   );
 }
