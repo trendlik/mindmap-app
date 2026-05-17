@@ -141,6 +141,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
+  const [inMapSearchOpen, setInMapSearchOpen] = useState(false);
+  const [inMapSearchQuery, setInMapSearchQuery] = useState('');
+  const inMapSearchInputRef = useRef<HTMLInputElement>(null);
+  const inMapSearchOpenRef = useRef(false);
+
   const panRef = useRef<PanState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const pinchRef = useRef<PinchState | null>(null);
@@ -173,6 +178,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       setReparentingFrom(null);
       setSelectedLinkId(null);
       setMultiSelected(new Set());
+      setInMapSearchOpen(false);
+      setInMapSearchQuery('');
     }
   }, [map?.id]);
 
@@ -245,6 +252,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const t = setTimeout(() => ensureNodeVisible(node), 60);
     return () => clearTimeout(t);
   }, [focusNodeId, map?.id]);
+
+  useEffect(() => {
+    if (inMapSearchOpen) {
+      setTimeout(() => inMapSearchInputRef.current?.focus(), 10);
+    }
+  }, [inMapSearchOpen]);
 
   function ensureNodeVisible(node: MindMapNode) {
     const svg = svgRef.current;
@@ -456,7 +469,17 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       panRef.current = null;
     }
     function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setInMapSearchOpen(true);
+        return;
+      }
       if (e.key === 'Escape') {
+        if (inMapSearchOpenRef.current) {
+          setInMapSearchOpen(false);
+          setInMapSearchQuery('');
+          return;
+        }
         if (linkingFrom) setLinkingFrom(null);
         if (reparentingFrom) setReparentingFrom(null);
         if (multiSelectedRef.current.size > 0) setMultiSelected(new Set());
@@ -525,10 +548,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('keydown', onKeyDown);
+    svgRef.current?.setAttribute('data-handlers-ready', 'true');
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('keydown', onKeyDown);
+      svgRef.current?.removeAttribute('data-handlers-ready');
     };
   }, [map, onUpdateNode, onSaveView, linkingFrom, reparentingFrom]);
 
@@ -791,6 +816,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   addChildRef.current = addChild;
   addSiblingRef.current = addSibling;
   startLinkingRef.current = startLinking;
+  inMapSearchOpenRef.current = inMapSearchOpen;
 
   function handleLayout() {
     if (!svgRef.current || !map) return;
@@ -843,12 +869,18 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     }
   })();
 
-  // Derive the set of nodes that match the current search query for highlighting
+  // Derive the set of nodes that match the current search query for highlighting.
+  // In-map search takes priority over the global sidebar search when active.
   const highlightNodeIds = new Set<string>();
-  if (highlightQuery) {
-    const term = highlightQuery.toLowerCase();
+  const activeQuery = inMapSearchOpen ? inMapSearchQuery : highlightQuery;
+  if (activeQuery) {
+    const term = activeQuery.toLowerCase();
     for (const n of Object.values(map.nodes)) {
-      if (n.label.toLowerCase().includes(term) || (n.notes ?? '').toLowerCase().includes(term)) {
+      if (
+        n.label.toLowerCase().includes(term) ||
+        (n.notes ?? '').toLowerCase().includes(term) ||
+        (n.link ?? '').toLowerCase().includes(term)
+      ) {
         highlightNodeIds.add(n.id);
       }
     }
@@ -1135,6 +1167,39 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
             else if (e.key === 'Escape') setEditingId(null);
           }}
         />
+      )}
+
+      {inMapSearchOpen && (
+        <div className={styles.inMapSearch}>
+          <input
+            ref={inMapSearchInputRef}
+            className={styles.inMapSearchInput}
+            value={inMapSearchQuery}
+            onChange={e => {
+              const prev = inMapSearchQuery;
+              setInMapSearchQuery(e.target.value);
+              if (!prev && e.target.value) trackEvent('searchInMap');
+            }}
+            placeholder="Search in this map…"
+            onKeyDown={e => {
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                setInMapSearchOpen(false);
+                setInMapSearchQuery('');
+              }
+            }}
+          />
+          {inMapSearchQuery && (
+            <span className={styles.inMapSearchCount}>
+              {highlightNodeIds.size} {highlightNodeIds.size === 1 ? 'match' : 'matches'}
+            </span>
+          )}
+          <button
+            className={styles.inMapSearchClose}
+            onClick={() => { setInMapSearchOpen(false); setInMapSearchQuery(''); }}
+            aria-label="Close search"
+          >✕</button>
+        </div>
       )}
 
       <Toolbar

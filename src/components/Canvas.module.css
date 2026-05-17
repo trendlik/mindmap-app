@@ -129,6 +129,58 @@
   color: var(--text-tertiary);
 }
 
+.inMapSearch {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
+.inMapSearchInput {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  background: transparent;
+  color: var(--text-primary);
+  width: 200px;
+  min-width: 0;
+}
+
+.inMapSearchInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.inMapSearchCount {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.inMapSearchClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.inMapSearchClose:hover {
+  color: var(--text-primary);
+}
+
 @media (max-width: 640px) {
   .hint {
     bottom: 68px;
@@ -144,5 +196,13 @@
     top: 14px;
     font-size: 11px;
     padding: 5px 12px;
+  }
+
+  .inMapSearch {
+    right: 8px;
+  }
+
+  .inMapSearchInput {
+    width: min(160px, calc(100vw - 120px));
   }
 }
