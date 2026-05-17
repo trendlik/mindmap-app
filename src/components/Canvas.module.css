@@ -129,6 +129,34 @@
   color: var(--text-tertiary);
 }
 
+.inMapSearchOpen {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  z-index: 20;
+  padding: 0;
+}
+
+.inMapSearchOpen:hover {
+  color: var(--text-primary);
+}
+
+.inMapSearchOpen:focus-visible {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: 2px;
+}
+
 .inMapSearch {
   position: absolute;
   top: 60px;
@@ -196,6 +224,10 @@
     top: 14px;
     font-size: 11px;
     padding: 5px 12px;
+  }
+
+  .inMapSearchOpen {
+    right: 8px;
   }
 
   .inMapSearch {
