@@ -27,6 +27,7 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   reparent: 'Move node',
   toggleNotes: 'Toggle notes',
   collapseNode: 'Collapse node',
+  searchInMap: 'Search in map',
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_LABELS) as FeatureKey[];
