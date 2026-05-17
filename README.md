@@ -11,6 +11,16 @@ npm run dev
 
 Copy `.env.example` to `.env.local` and fill in your Firebase project values before running.
 
+## Local development setup
+
+After cloning, run this once to enable the git hooks included in the repo:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This activates a `post-checkout` hook that automatically symlinks `.env.local` into any git worktree you create, so E2E tests and the dev server work there without manual setup.
+
 ## Build for production
 
 ```bash
