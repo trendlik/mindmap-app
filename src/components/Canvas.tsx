@@ -719,6 +719,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const id = onAddNode(map.id, 'new idea', p.x + xOffset, p.y + ch.length * 55 - (ch.length - 1) * 27, pid, (p.depth || 0) + 1);
     trackEvent('addChild');
     setSelectedId(id);
+    if (notesOpen) setNotesNodeId(id);
     setTimeout(() => {
       const n = map.nodes[id] || { label: 'new idea', x: p.x + xOffset, y: p.y };
       const { w, h } = measureNode('new idea');
@@ -737,6 +738,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const id = onAddNode(map.id, 'new idea', n.x, n.y + 55, n.parentId, n.depth);
     trackEvent('addSibling');
     setSelectedId(id);
+    if (notesOpen) setNotesNodeId(id);
     setTimeout(() => {
       const { w, h } = measureNode('new idea');
       const sx = (n.x - w / 2) * scale + tx;
