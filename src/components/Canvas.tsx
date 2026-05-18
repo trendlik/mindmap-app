@@ -6,6 +6,8 @@ import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
 import ConfirmDialog from './ConfirmDialog';
 import KeyboardShortcutsModal from './KeyboardShortcutsModal';
+import ChatModal from './ChatModal';
+import SettingsPanel from './SettingsPanel';
 import styles from './Canvas.module.css';
 
 interface CanvasProps {
@@ -143,6 +145,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [inMapSearchOpen, setInMapSearchOpen] = useState(false);
   const [inMapSearchQuery, setInMapSearchQuery] = useState('');
   const inMapSearchInputRef = useRef<HTMLInputElement>(null);
@@ -1259,6 +1263,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onExportJson={() => onExportJson(map)}
         onExportImg={() => onExportImg(map)}
         onShowShortcuts={() => setShortcutsOpen(true)}
+        onOpenChat={() => setChatOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       {notesOpen && notesNodeId && map.nodes[notesNodeId] && (
@@ -1305,6 +1311,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onCancel={() => setConfirmDialog(null)}
       />
       {shortcutsOpen && <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      {chatOpen && <ChatModal onClose={() => setChatOpen(false)} nodes={map.nodes} selectedNodeId={selectedId} />}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }
