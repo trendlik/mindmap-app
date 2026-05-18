@@ -12,7 +12,8 @@ export function buildSubtreeContext(nodes: Record<string, MindMapNode>, rootId: 
   const prefix = '  '.repeat(indent);
   const children = Object.values(nodes).filter(n => n.parentId === rootId);
   const childText = children.map(c => buildSubtreeContext(nodes, c.id, indent + 1)).join('');
-  const notesLine = node.notes ? `${prefix}  [notes: ${node.notes}]\n` : '';
+  const trimmedNotes = node.notes?.trim();
+  const notesLine = trimmedNotes ? `${prefix}  [notes: ${trimmedNotes.replace(/\n+/g, ' ')}]\n` : '';
   return `${prefix}${node.label}\n${notesLine}${childText}`;
 }
 
