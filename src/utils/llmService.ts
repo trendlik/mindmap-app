@@ -24,8 +24,12 @@ export async function sendMessage(
   messages: ChatMessage[],
   settings: LLMSettings,
   mapContext: string,
+  selectedNodeLabel?: string,
 ): Promise<string> {
-  const systemPrompt = `You are a mind-map wording coach. The user's mind map structure is:\n\n${mapContext}\n\nHelp the user improve the clarity and effectiveness of their wording.`;
+  const selectionLine = selectedNodeLabel
+    ? `The user is currently focused on the node: "${selectedNodeLabel}".\n\n`
+    : '';
+  const systemPrompt = `You are a mind-map wording coach. ${selectionLine}The user's mind map structure is:\n\n${mapContext}\n\nHelp the user improve the clarity and effectiveness of their wording.`;
 
   if (settings.provider === 'claude') {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
