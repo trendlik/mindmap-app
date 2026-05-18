@@ -1311,7 +1311,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onCancel={() => setConfirmDialog(null)}
       />
       {shortcutsOpen && <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />}
-      {chatOpen && <ChatModal onClose={() => setChatOpen(false)} nodes={map.nodes} selectedNodeId={selectedId} />}
+      {chatOpen && <ChatModal onClose={() => setChatOpen(false)} onOpenSettings={() => setSettingsOpen(true)} nodes={map.nodes} selectedNodeId={selectedId} />}
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   );

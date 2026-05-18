@@ -6,7 +6,7 @@ export type FeatureKey =
   | 'exportJson' | 'exportSvg' | 'createMap' | 'renameMap' | 'deleteMap'
   | 'switchMap' | 'archiveMap' | 'search' | 'nodeDrag' | 'nodeInlineEdit'
   | 'pan' | 'zoom' | 'undo' | 'redo' | 'addLink' | 'reparent'
-  | 'toggleNotes' | 'collapseNode' | 'searchInMap';
+  | 'toggleNotes' | 'collapseNode' | 'searchInMap' | 'aiChat' | 'llmSettings';
 
 export interface FeatureStat {
   count: number;

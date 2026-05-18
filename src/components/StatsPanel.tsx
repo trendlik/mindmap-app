@@ -28,6 +28,8 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   toggleNotes: 'Toggle notes',
   collapseNode: 'Collapse node',
   searchInMap: 'Search in map',
+  aiChat: 'AI Chat',
+  llmSettings: 'LLM Settings',
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_LABELS) as FeatureKey[];

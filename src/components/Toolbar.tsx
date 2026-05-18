@@ -191,8 +191,8 @@ export default function Toolbar(props: ToolbarProps) {
       <div className={`${styles.sep} ${styles.shortcutsSep}`} />
       <button className={`${styles.btn} ${styles.shortcutsBtn}`} onClick={onShowShortcuts} title="Keyboard shortcuts (?)">?</button>
       <div className={styles.sep} />
-      <button className={styles.btn} onClick={onOpenChat} title="AI Chat">✦</button>
-      <button className={styles.btn} onClick={onOpenSettings} title="LLM Settings">⚙</button>
+      <button className={styles.btn} onClick={() => { onOpenChat(); trackEvent('aiChat'); }} title="AI Chat">✦</button>
+      <button className={styles.btn} onClick={() => { onOpenSettings(); trackEvent('llmSettings'); }} title="LLM Settings">⚙</button>
     </div>
   );
 }
