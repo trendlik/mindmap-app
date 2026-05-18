@@ -67,7 +67,7 @@ export default function ChatModal({ onClose, onOpenSettings, nodes, selectedNode
 
     try {
       const apiMessages: ChatMessage[] = next.map(({ role, content }) => ({ role, content }));
-      const selectedNodeLabel = selectedNodeId ? nodes[selectedNodeId]?.label : undefined;
+      const selectedNodeLabel = (scope === 'selected' && selectedNodeId) ? nodes[selectedNodeId]?.label : undefined;
       const reply = await sendMessage(apiMessages, settings, mapContext, selectedNodeLabel);
       setMessages(m => [...m, { id: crypto.randomUUID(), role: 'assistant', content: reply }]);
     } catch (e) {
