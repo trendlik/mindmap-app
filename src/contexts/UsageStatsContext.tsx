@@ -164,11 +164,14 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
     };
   }, [uid, scheduleFirestoreFlush, flushToFirestore]);
 
+  const lastSyncedErrorCountRef = useRef(0);
+
   useEffect(() => {
     if (!uid) return;
     const interval = setInterval(() => {
       const errorEntries = logger.getRecentLogs().filter(e => e.level === 'error');
-      if (errorEntries.length > 0) {
+      if (errorEntries.length > 0 && errorEntries.length !== lastSyncedErrorCountRef.current) {
+        lastSyncedErrorCountRef.current = errorEntries.length;
         saveErrorLog(uid, errorEntries).catch((err) => logger.logError('error_log_sync_failed', err));
       }
     }, 60_000);

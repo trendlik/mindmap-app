@@ -53,7 +53,7 @@ class Logger {
     } else if (typeof error === 'string') {
       errorMessage = error;
     } else if (error !== null && error !== undefined) {
-      errorMessage = String(error);
+      try { errorMessage = String(error); } catch { errorMessage = '[unstringifiable error]'; }
     }
     const entry: LogEntry = {
       timestamp: Date.now(),

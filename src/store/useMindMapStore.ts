@@ -149,7 +149,7 @@ function saveLocalState(maps: MapsRecord, mapOrder?: string[]): void {
       ...(mapOrder !== undefined ? { mapOrder } : {}),
     }));
   } catch (e) {
-    logger.logError('localstorage_parse_failed', e, { key: STORAGE_KEY });
+    logger.logError('localstorage_write_failed', e, { key: STORAGE_KEY });
   }
 }
 

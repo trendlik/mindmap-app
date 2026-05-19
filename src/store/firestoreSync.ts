@@ -38,13 +38,19 @@ export function subscribeToMaps(
 export async function saveMapToFirestore(uid: string, map: MindMap): Promise<void> {
   if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'maps', map.id);
-  await setDoc(ref, map).catch((err) => logger.logError('firestore_save_failed', err, { mapId: map.id }));
+  await setDoc(ref, map).catch((err) => {
+    logger.logError('firestore_save_failed', err, { mapId: map.id });
+    throw err;
+  });
 }
 
 export async function deleteMapFromFirestore(uid: string, mapId: string): Promise<void> {
   if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'maps', mapId);
-  await deleteDoc(ref).catch((err) => logger.logError('firestore_delete_failed', err, { mapId }));
+  await deleteDoc(ref).catch((err) => {
+    logger.logError('firestore_delete_failed', err, { mapId });
+    throw err;
+  });
 }
 
 export async function saveAllMapsToFirestore(uid: string, maps: MapsRecord): Promise<void> {
