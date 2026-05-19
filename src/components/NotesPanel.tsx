@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import styles from './NotesPanel.module.css';
+import { logger } from '../utils/logger';
 
 const EMOJIS = [
   '💡', '🔥', '⭐', '✅', '❌', '⚠️', '🔑', '📌',
@@ -80,6 +81,7 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
   function handleLinkBlur() {
     const normalized = normalizeLink(link);
     if (normalized !== link) onChangeLink(normalized);
+    if (link) logger.logAction('node_link_set');
   }
 
   function handleLinkClick(e: React.MouseEvent) {
@@ -116,7 +118,7 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
         {icon && (
           <button
             className={styles.iconRemove}
-            onClick={() => { onChangeIcon(''); setPickerOpen(false); }}
+            onClick={() => { onChangeIcon(''); setPickerOpen(false); logger.logAction('node_icon_removed'); }}
             title="Remove icon"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -130,7 +132,7 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
               <button
                 key={e}
                 className={`${styles.emojiBtn} ${e === icon ? styles.emojiBtnActive : ''}`}
-                onClick={() => { onChangeIcon(e === icon ? '' : e); setPickerOpen(false); }}
+                onClick={() => { const next = e === icon ? '' : e; onChangeIcon(next); setPickerOpen(false); logger.logAction('node_icon_set', { icon: next }); }}
                 title={e}
               >
                 {e}
@@ -209,6 +211,7 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
         className={styles.editor}
         contentEditable
         onInput={handleInput}
+        onBlur={() => { if (editorRef.current?.innerHTML) logger.logAction('node_notes_edited'); }}
         data-placeholder="Add notes..."
       />
     </div>

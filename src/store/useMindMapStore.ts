@@ -322,6 +322,7 @@ export function useMindMapStore(userId: string | null) {
       persist(next, entry.mapId);
       return next;
     });
+    logger.logAction('undo', { mapId: entry.mapId });
   }, [persist]);
 
   const redo = useCallback(() => {
@@ -337,6 +338,7 @@ export function useMindMapStore(userId: string | null) {
       persist(next, entry.mapId);
       return next;
     });
+    logger.logAction('redo', { mapId: entry.mapId });
   }, [persist]);
 
   const saveView = useCallback((mapId: string, tx: number, ty: number, scale: number) => {
@@ -399,14 +401,17 @@ export function useMindMapStore(userId: string | null) {
 
   const renameMap = useCallback((mapId: string, name: string) => {
     updateMapWithUndo(mapId, m => ({ ...m, name }));
+    logger.logAction('map_renamed', { mapId });
   }, [updateMapWithUndo]);
 
   const updateMapLabels = useCallback((mapId: string, labels: string[]) => {
     updateMap(mapId, m => ({ ...m, labels }));
+    logger.logAction('map_labels_updated', { mapId });
   }, [updateMap]);
 
   const switchMap = useCallback((mapId: string) => {
     setActiveMapId(mapId);
+    logger.logAction('map_switched', { mapId });
   }, []);
 
   const addNode = useCallback((mapId: string, label: string, x: number, y: number, parentId: string | null, depth: number) => {
@@ -451,6 +456,7 @@ export function useMindMapStore(userId: string | null) {
   }, [updateMapWithUndo]);
 
   const applyAutoLayout = useCallback((mapId: string, canvasHeight: number, currentScale: number, currentTy: number) => {
+    logger.logAction('auto_layout_applied', { mapId });
     updateMapWithUndo(mapId, m => {
       const nodes = { ...m.nodes };
       const roots = Object.values(nodes).filter(n => !n.parentId);
@@ -550,6 +556,7 @@ export function useMindMapStore(userId: string | null) {
 
   const setMapArchived = useCallback((mapId: string, archived: boolean) => {
     updateMap(mapId, m => ({ ...m, archived }));
+    logger.logAction(archived ? 'map_archived' : 'map_unarchived', { mapId });
   }, [updateMap]);
 
   return {

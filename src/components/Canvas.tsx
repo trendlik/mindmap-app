@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
+import { logger } from '../utils/logger';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
 import ConfirmDialog from './ConfirmDialog';
@@ -741,7 +742,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function finishEdit() {
     if (!editingId) return;
     const v = editValue.trim();
-    if (v) { onUpdateNode(map!.id, editingId, { label: v }); trackEvent('nodeInlineEdit'); }
+    if (v) {
+      onUpdateNode(map!.id, editingId, { label: v });
+      trackEvent('nodeInlineEdit');
+      logger.logAction('node_label_edited', { mapId: map!.id, nodeId: editingId });
+    }
     setEditingId(null);
   }
 
@@ -793,7 +798,9 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     // Only collapse nodes that have children
     const hasChildren = Object.values(map.nodes).some(n => n.parentId === selectedId);
     if (!hasChildren) return;
-    onUpdateNode(map.id, selectedId, { collapsed: !node.collapsed });
+    const collapsed = !node.collapsed;
+    onUpdateNode(map.id, selectedId, { collapsed });
+    logger.logAction('node_collapsed', { mapId: map.id, nodeId: selectedId, collapsed });
   }
 
   function deleteSelected() {
