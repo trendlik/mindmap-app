@@ -15,6 +15,7 @@ const MAX_BUFFER = 100;
 
 class Logger {
   private buffer: LogEntry[] = [];
+  private lastSyncedAt = 0;
 
   private isTestMode(): boolean {
     return !!(window as unknown as Record<string, unknown>).__PLAYWRIGHT_TEST_USER__;
@@ -72,6 +73,14 @@ class Logger {
 
   getRecentLogs(): LogEntry[] {
     return [...this.buffer];
+  }
+
+  getUnsyncedEntries(): LogEntry[] {
+    return this.buffer.filter(e => e.timestamp > this.lastSyncedAt);
+  }
+
+  markAllSynced(): void {
+    this.lastSyncedAt = Date.now();
   }
 }
 
