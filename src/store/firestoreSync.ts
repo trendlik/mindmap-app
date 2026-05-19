@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { MindMap } from './useMindMapStore';
+import { logger } from '../utils/logger';
 
 type MapsRecord = Record<string, MindMap>;
 
@@ -29,19 +30,21 @@ export function subscribeToMaps(
       maps[d.id] = data;
     });
     callback(maps);
+  }, (err) => {
+    logger.logError('firestore_snapshot_error', err);
   });
 }
 
 export async function saveMapToFirestore(uid: string, map: MindMap): Promise<void> {
   if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'maps', map.id);
-  await setDoc(ref, map);
+  await setDoc(ref, map).catch((err) => logger.logError('firestore_save_failed', err, { mapId: map.id }));
 }
 
 export async function deleteMapFromFirestore(uid: string, mapId: string): Promise<void> {
   if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'maps', mapId);
-  await deleteDoc(ref);
+  await deleteDoc(ref).catch((err) => logger.logError('firestore_delete_failed', err, { mapId }));
 }
 
 export async function saveAllMapsToFirestore(uid: string, maps: MapsRecord): Promise<void> {

@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { UsageStats } from '../contexts/UsageStatsContext';
+import { logger } from '../utils/logger';
 
 const isTestMode = () => !!window.__PLAYWRIGHT_TEST_USER__;
 

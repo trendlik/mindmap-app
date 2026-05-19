@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useCallback } from 'react';
 import { loadUsageStats, saveUsageStats } from '../store/usageStatsSync';
+import { logger } from '../utils/logger';
+import { saveErrorLog } from '../store/errorSync';
 
 export type FeatureKey =
   | 'addChild' | 'addSibling' | 'deleteNode' | 'autoLayout' | 'fitView'
@@ -57,7 +59,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
     if (!currentUid) return;
     const stats = statsRef.current;
     localStorage.setItem(localKey(currentUid), JSON.stringify(stats));
-    saveUsageStats(currentUid, stats).catch(() => {});
+    saveUsageStats(currentUid, stats).catch((err) => logger.logError('usage_stats_save_failed', err));
   }, []);
 
   const scheduleFirestoreFlush = useCallback(() => {
@@ -119,7 +121,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
         statsRef.current = merged;
         localStorage.setItem(localKey(uid), JSON.stringify(merged));
       }
-    }).catch(() => {});
+    }).catch((err) => logger.logError('usage_stats_load_failed', err));
 
     if (document.visibilityState === 'visible') {
       visibilityStartRef.current = Date.now();
@@ -161,6 +163,17 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
       flushToFirestore();
     };
   }, [uid, scheduleFirestoreFlush, flushToFirestore]);
+
+  useEffect(() => {
+    if (!uid) return;
+    const interval = setInterval(() => {
+      const errorEntries = logger.getRecentLogs().filter(e => e.level === 'error');
+      if (errorEntries.length > 0) {
+        saveErrorLog(uid, errorEntries).catch((err) => logger.logError('error_log_sync_failed', err));
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [uid]);
 
   return (
     <UsageStatsContext.Provider value={{ trackEvent, getStats }}>

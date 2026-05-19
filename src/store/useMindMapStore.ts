@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { subscribeToMaps, saveMapToFirestore, deleteMapFromFirestore, saveAllMapsToFirestore } from './firestoreSync';
+import { logger } from '../utils/logger';
 
 const STORAGE_KEY = 'mindmaps_v2';
 
@@ -119,7 +120,9 @@ function loadLocalState(): MapsRecord | null {
       const parsed = JSON.parse(raw);
       return parsed.maps || null;
     }
-  } catch (_e) { /* ignore */ }
+  } catch (e) {
+    logger.logError('localstorage_parse_failed', e, { key: STORAGE_KEY, field: 'maps' });
+  }
   return null;
 }
 
@@ -130,7 +133,9 @@ function loadLocalOrder(): string[] | null {
       const parsed = JSON.parse(raw);
       return parsed.mapOrder || null;
     }
-  } catch (_e) { /* ignore */ }
+  } catch (e) {
+    logger.logError('localstorage_parse_failed', e, { key: STORAGE_KEY, field: 'mapOrder' });
+  }
   return null;
 }
 
@@ -143,7 +148,9 @@ function saveLocalState(maps: MapsRecord, mapOrder?: string[]): void {
       maps,
       ...(mapOrder !== undefined ? { mapOrder } : {}),
     }));
-  } catch (_e) { /* ignore */ }
+  } catch (e) {
+    logger.logError('localstorage_parse_failed', e, { key: STORAGE_KEY });
+  }
 }
 
 function makeRootNode(id: string, label: string): MindMapNode {
@@ -360,6 +367,7 @@ export function useMindMapStore(userId: string | null) {
       return next;
     });
     setActiveMapId(mapId);
+    logger.logAction('map_created', { mapId });
     return mapId;
   }, [userId]);
 
@@ -378,6 +386,7 @@ export function useMindMapStore(userId: string | null) {
     if (activeMapId === mapId) {
       setActiveMapId(Object.keys(next)[0]);
     }
+    logger.logAction('map_deleted', { mapId });
   }, [activeMapId, userId]);
 
   const reorderMaps = useCallback((newOrder: string[]) => {
@@ -407,6 +416,7 @@ export function useMindMapStore(userId: string | null) {
       nodes: { ...m.nodes, [id]: { id, label, x, y, parentId, depth: depth || 0, w: 0, h: 36 } },
       edges: parentId ? [...m.edges, { from: parentId, to: id }] : m.edges,
     }));
+    logger.logAction('node_added', { mapId, nodeId: id, parentId: parentId ?? undefined, depth });
     return id;
   }, [updateMapWithUndo]);
 
@@ -437,6 +447,7 @@ export function useMindMapStore(userId: string | null) {
       edges: newEdges,
       links: (m.links || []).filter(l => !toDelete.has(l.from) && !toDelete.has(l.to)),
     }));
+    logger.logAction('node_deleted', { mapId, nodeId });
   }, [updateMapWithUndo]);
 
   const applyAutoLayout = useCallback((mapId: string, canvasHeight: number, currentScale: number, currentTy: number) => {
@@ -508,6 +519,7 @@ export function useMindMapStore(userId: string | null) {
       edges.push({ from: newParentId, to: nodeId });
       return { ...m, nodes, edges };
     });
+    logger.logAction('node_reparented', { mapId, nodeId, newParentId });
   }, [updateMapWithUndo]);
 
   const addLink = useCallback((mapId: string, from: string, to: string, style: CustomLink['style'], stroke: CustomLink['stroke'], arrowFrom = false) => {
@@ -517,6 +529,7 @@ export function useMindMapStore(userId: string | null) {
       ...m,
       links: [...(m.links || []), { id, from, to, style, stroke, arrowFrom, arrowTo }],
     }));
+    logger.logAction('link_added', { mapId });
     return id;
   }, [updateMapWithUndo]);
 
@@ -532,6 +545,7 @@ export function useMindMapStore(userId: string | null) {
       ...m,
       links: (m.links || []).filter(l => l.id !== linkId),
     }));
+    logger.logAction('link_deleted', { mapId });
   }, [updateMapWithUndo]);
 
   const setMapArchived = useCallback((mapId: string, archived: boolean) => {
