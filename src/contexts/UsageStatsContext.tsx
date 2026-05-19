@@ -145,6 +145,10 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
         visibilityStartRef.current = null;
       }
       flushToFirestore();
+      const entries = logger.getUnsyncedEntries();
+      if (entries.length > 0) {
+        saveLogBatch(uid!, entries);
+      }
     }
 
     document.addEventListener('visibilitychange', onVisibilityChange);
