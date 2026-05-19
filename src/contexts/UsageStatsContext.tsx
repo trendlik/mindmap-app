@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useCallback } from 'react';
 import { loadUsageStats, saveUsageStats } from '../store/usageStatsSync';
 import { logger } from '../utils/logger';
-import { saveErrorLog } from '../store/errorSync';
+import { saveLogBatch } from '../store/logSync';
 
 export type FeatureKey =
   | 'addChild' | 'addSibling' | 'deleteNode' | 'autoLayout' | 'fitView'
@@ -164,15 +164,14 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
     };
   }, [uid, scheduleFirestoreFlush, flushToFirestore]);
 
-  const lastSyncedErrorCountRef = useRef(0);
-
   useEffect(() => {
     if (!uid) return;
     const interval = setInterval(() => {
-      const errorEntries = logger.getRecentLogs().filter(e => e.level === 'error');
-      if (errorEntries.length > 0 && errorEntries.length !== lastSyncedErrorCountRef.current) {
-        lastSyncedErrorCountRef.current = errorEntries.length;
-        saveErrorLog(uid, errorEntries).catch((err) => logger.logError('error_log_sync_failed', err));
+      const entries = logger.getUnsyncedEntries();
+      if (entries.length > 0) {
+        saveLogBatch(uid, entries)
+          .then(() => logger.markAllSynced())
+          .catch((err) => logger.logError('log_sync_failed', err));
       }
     }, 60_000);
     return () => clearInterval(interval);

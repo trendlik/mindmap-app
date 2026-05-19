@@ -11,10 +11,15 @@ export interface LogEntry {
   errorStack?: string;
 }
 
+// Entries older than lastSyncedAt that haven't been flushed yet will be
+// silently dropped if the buffer reaches MAX_BUFFER before the next sync tick.
+// This is an accepted tradeoff: sync runs every 60s and the app generates
+// far fewer than 100 log entries per minute under normal use.
 const MAX_BUFFER = 100;
 
 class Logger {
   private buffer: LogEntry[] = [];
+  private lastSyncedAt = 0;
 
   private isTestMode(): boolean {
     return !!(window as unknown as Record<string, unknown>).__PLAYWRIGHT_TEST_USER__;
@@ -72,6 +77,14 @@ class Logger {
 
   getRecentLogs(): LogEntry[] {
     return [...this.buffer];
+  }
+
+  getUnsyncedEntries(): LogEntry[] {
+    return this.buffer.filter(e => e.timestamp > this.lastSyncedAt);
+  }
+
+  markAllSynced(): void {
+    this.lastSyncedAt = Date.now();
   }
 }
 
