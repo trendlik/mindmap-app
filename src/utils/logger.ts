@@ -11,6 +11,10 @@ export interface LogEntry {
   errorStack?: string;
 }
 
+// Entries older than lastSyncedAt that haven't been flushed yet will be
+// silently dropped if the buffer reaches MAX_BUFFER before the next sync tick.
+// This is an accepted tradeoff: sync runs every 60s and the app generates
+// far fewer than 100 log entries per minute under normal use.
 const MAX_BUFFER = 100;
 
 class Logger {
