@@ -3,6 +3,7 @@ import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMa
 import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
 import { logger } from '../utils/logger';
+import { stripHtml } from '../utils/linkify';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
 import ConfirmDialog from './ConfirmDialog';
@@ -898,7 +899,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     for (const n of Object.values(map.nodes)) {
       if (
         n.label.toLowerCase().includes(term) ||
-        (n.notes ?? '').toLowerCase().includes(term) ||
+        stripHtml(n.notes ?? '').toLowerCase().includes(term) ||
         (n.link ?? '').toLowerCase().includes(term)
       ) {
         highlightNodeIds.add(n.id);

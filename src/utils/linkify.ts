@@ -1,5 +1,11 @@
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 
+/** Strip all HTML tags and return plain text. Safe for use in search/display contexts. */
+export function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '');
+}
+
 function isInsideAnchor(node: Node): boolean {
   let p: Node | null = node.parentNode;
   while (p) {
@@ -33,12 +39,13 @@ function linkifyNode(root: Node): void {
     URL_RE.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = URL_RE.exec(text))) {
+      const url = m[0].replace(/[.,!?);:]+$/, '');
       if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
       const a = document.createElement('a');
-      a.href = m[0];
+      a.href = url;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.textContent = m[0];
+      a.textContent = url;
       frag.appendChild(a);
       last = m.index + m[0].length;
     }

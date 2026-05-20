@@ -224,12 +224,24 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
           if (editorRef.current?.innerHTML) logger.logAction('node_notes_edited');
         }}
         onPaste={(e) => {
-          const text = e.clipboardData?.getData('text/plain');
+          e.preventDefault(); // Always prevent default to block unsanitized HTML paste
+          const text = e.clipboardData?.getData('text/plain') ?? '';
           if (!text) return;
-          if (!/https?:\/\//.test(text)) return;
-          e.preventDefault();
-          const linked = linkifyHtml(text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
-          document.execCommand('insertHTML', false, linked);
+          const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const linked = /https?:\/\//.test(text) ? linkifyHtml(safe) : safe;
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) return;
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          const tmp = document.createElement('div');
+          tmp.innerHTML = linked;
+          const frag = document.createDocumentFragment();
+          while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+          range.insertNode(frag);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          handleInput();
         }}
         onMouseDown={(e) => {
           const target = e.target as HTMLElement;
