@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import styles from './NotesPanel.module.css';
 import { logger } from '../utils/logger';
-import { linkifyHtml } from '../utils/linkify';
+import { linkifyHtml, linkifyNode } from '../utils/linkify';
 
 const EMOJIS = [
   '💡', '🔥', '⭐', '✅', '❌', '⚠️', '🔑', '📌',
@@ -224,19 +224,20 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
           if (editorRef.current?.innerHTML) logger.logAction('node_notes_edited');
         }}
         onPaste={(e) => {
-          e.preventDefault(); // Always prevent default to block unsanitized HTML paste
+          e.preventDefault();
           const text = e.clipboardData?.getData('text/plain') ?? '';
           if (!text) return;
-          const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          const linked = /https?:\/\//.test(text) ? linkifyHtml(safe) : safe;
           const selection = window.getSelection();
           if (!selection || selection.rangeCount === 0) return;
           const range = selection.getRangeAt(0);
           range.deleteContents();
-          const tmp = document.createElement('div');
-          tmp.innerHTML = linked;
           const frag = document.createDocumentFragment();
-          while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+          const tmp = document.createTextNode(text);
+          frag.appendChild(tmp);
+          if (/https?:\/\//.test(text)) {
+            // linkifyNode works on the live DOM fragment in-place
+            linkifyNode(frag);
+          }
           range.insertNode(frag);
           range.collapse(false);
           selection.removeAllRanges();

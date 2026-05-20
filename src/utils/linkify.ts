@@ -22,7 +22,7 @@ export function linkifyHtml(html: string): string {
   return container.innerHTML;
 }
 
-function linkifyNode(root: Node): void {
+export function linkifyNode(root: Node): void {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const toProcess: Text[] = [];
   let node: Node | null;
@@ -39,15 +39,22 @@ function linkifyNode(root: Node): void {
     URL_RE.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = URL_RE.exec(text))) {
-      const url = m[0].replace(/[.,!?);:]+$/, '');
+      const rawUrl = m[0];
+      const url = rawUrl.replace(/[.,!?);:]+$/, '');
+      const trailingPunct = rawUrl.slice(url.length);
+
       if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+
       const a = document.createElement('a');
       a.href = url;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       a.textContent = url;
       frag.appendChild(a);
-      last = m.index + m[0].length;
+
+      if (trailingPunct) frag.appendChild(document.createTextNode(trailingPunct));
+
+      last = m.index + rawUrl.length;
     }
     if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
     textNode.parentNode!.replaceChild(frag, textNode);
