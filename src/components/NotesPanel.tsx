@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import styles from './NotesPanel.module.css';
 import { logger } from '../utils/logger';
+import { linkifyHtml } from '../utils/linkify';
 
 const EMOJIS = [
   '💡', '🔥', '⭐', '✅', '❌', '⚠️', '🔑', '📌',
@@ -211,7 +212,33 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
         className={styles.editor}
         contentEditable
         onInput={handleInput}
-        onBlur={() => { if (editorRef.current?.innerHTML) logger.logAction('node_notes_edited'); }}
+        onBlur={() => {
+          if (editorRef.current) {
+            const linked = linkifyHtml(editorRef.current.innerHTML);
+            if (linked !== editorRef.current.innerHTML) {
+              isInternalUpdate.current = true;
+              editorRef.current.innerHTML = linked;
+              onChange(linked);
+            }
+          }
+          if (editorRef.current?.innerHTML) logger.logAction('node_notes_edited');
+        }}
+        onPaste={(e) => {
+          const text = e.clipboardData?.getData('text/plain');
+          if (!text) return;
+          if (!/https?:\/\//.test(text)) return;
+          e.preventDefault();
+          const linked = linkifyHtml(text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+          document.execCommand('insertHTML', false, linked);
+        }}
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.tagName === 'A' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            window.open((target as HTMLAnchorElement).href, '_blank', 'noopener');
+          }
+        }}
+        title="Cmd+click links to open them"
         data-placeholder="Add notes..."
       />
     </div>
