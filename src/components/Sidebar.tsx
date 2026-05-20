@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import type { MindMap } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
+import { stripHtml } from '../utils/linkify';
 import ConfirmDialog from './ConfirmDialog';
 import StatsPanel from './StatsPanel';
 import styles from './Sidebar.module.css';
@@ -72,7 +73,7 @@ function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: strin
     return ids.filter(id => {
       if (maps[id].archived) return false;
       return Object.values(maps[id].nodes).some(n =>
-        n.label.toLowerCase().includes(term) || (n.notes ?? '').toLowerCase().includes(term)
+        n.label.toLowerCase().includes(term) || stripHtml(n.notes ?? '').toLowerCase().includes(term)
       );
     });
   }
@@ -82,7 +83,7 @@ function applySearch(maps: Record<string, MindMap>, mapOrder: string[], q: strin
     if (maps[id].archived) return false;
     const nameMatch = maps[id].name.toLowerCase().includes(q);
     const hasNodeHit = Object.values(maps[id].nodes).some(n =>
-      n.label.toLowerCase().includes(q) || (n.notes ?? '').toLowerCase().includes(q)
+      n.label.toLowerCase().includes(q) || stripHtml(n.notes ?? '').toLowerCase().includes(q)
     );
     return nameMatch || hasNodeHit;
   });
@@ -109,7 +110,8 @@ function computeNodeHits(
     const hits: NodeHit[] = [];
     for (const n of Object.values(map.nodes)) {
       const labelLower = n.label.toLowerCase();
-      const notesLower = (n.notes ?? '').toLowerCase();
+      const notesPlain = stripHtml(n.notes ?? '');
+      const notesLower = notesPlain.toLowerCase();
       if (labelLower.includes(term) || notesLower.includes(term)) {
         // Build snippet: prefer label if it matches, otherwise excerpt from notes
         let snippet = n.label;
@@ -117,8 +119,8 @@ function computeNodeHits(
           const idx = notesLower.indexOf(term);
           const start = Math.max(0, idx - 20);
           const end = idx + term.length + 30;
-          const trailingEllipsis = end < (n.notes ?? '').length ? '…' : '';
-          snippet = (start > 0 ? '…' : '') + (n.notes ?? '').slice(start, end).trimEnd() + trailingEllipsis;
+          const trailingEllipsis = end < notesPlain.length ? '…' : '';
+          snippet = (start > 0 ? '…' : '') + notesPlain.slice(start, end).trimEnd() + trailingEllipsis;
         }
         hits.push({ nodeId: n.id, text: snippet });
         if (hits.length >= 3) break;
