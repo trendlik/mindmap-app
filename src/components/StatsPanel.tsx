@@ -34,6 +34,7 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   llmSettings: 'LLM Settings',
   notesIndent: 'Notes indent',
   notesOutdent: 'Notes outdent',
+  toggleNumbering: 'Toggle numbering',
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_LABELS) as FeatureKey[];

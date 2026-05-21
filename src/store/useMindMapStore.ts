@@ -35,6 +35,11 @@ export interface CustomLink {
   label?: string;
 }
 
+export interface MapNumbering {
+  enabled: boolean;
+  style: 'prefix' | 'badge';
+}
+
 export interface MindMap {
   id: string;
   name: string;
@@ -47,6 +52,7 @@ export interface MindMap {
   ty: number;
   scale: number;
   updatedAt?: number;
+  numbering?: MapNumbering;
 }
 
 export type MapsRecord = Record<string, MindMap>;
@@ -559,6 +565,10 @@ export function useMindMapStore(userId: string | null) {
     logger.logAction(archived ? 'map_archived' : 'map_unarchived', { mapId });
   }, [updateMap]);
 
+  const updateMapNumbering = useCallback((mapId: string, numbering: MapNumbering | undefined) => {
+    updateMap(mapId, m => ({ ...m, numbering }));
+  }, [updateMap]);
+
   return {
     maps,
     activeMapId,
@@ -578,6 +588,7 @@ export function useMindMapStore(userId: string | null) {
     updateLink,
     deleteLink,
     setMapArchived,
+    updateMapNumbering,
     applyAutoLayout,
     undo,
     redo,
