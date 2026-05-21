@@ -30,6 +30,8 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   searchInMap: 'Search in map',
   aiChat: 'AI Chat',
   llmSettings: 'LLM Settings',
+  notesIndent: 'Notes indent',
+  notesOutdent: 'Notes outdent',
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_LABELS) as FeatureKey[];

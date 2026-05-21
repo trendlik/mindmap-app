@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import styles from './NotesPanel.module.css';
 import { logger } from '../utils/logger';
 import { linkifyHtml, linkifyNode } from '../utils/linkify';
+import { useUsageStats } from '../contexts/UsageStatsContext';
 
 const EMOJIS = [
   '💡', '🔥', '⭐', '✅', '❌', '⚠️', '🔑', '📌',
@@ -35,6 +36,21 @@ function isInternalLink(link: string): boolean {
   return link.startsWith('#');
 }
 
+function isInList(): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  let node: Node | null = sel.anchorNode;
+  while (node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const tag = (node as Element).tagName;
+      if (tag === 'LI' || tag === 'UL' || tag === 'OL') return true;
+      if (tag === 'DIV' || tag === 'BODY') break;
+    }
+    node = node.parentNode;
+  }
+  return false;
+}
+
 function fmt(command: string, value?: string) {
   document.execCommand(command, false, value);
 }
@@ -61,6 +77,24 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalUpdate = useRef(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { trackEvent } = useUsageStats();
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (isInList()) {
+        if (e.shiftKey) {
+          document.execCommand('outdent', false);
+          trackEvent('notesOutdent');
+        } else {
+          document.execCommand('indent', false);
+          trackEvent('notesIndent');
+        }
+      } else {
+        document.execCommand('insertText', false, '  ');
+      }
+    }
+  }
 
   // Sync external notes prop → editor HTML (only when the prop changes from outside)
   useEffect(() => {
@@ -206,12 +240,36 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
             <line x1="4" y1="9" x2="11" y2="9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
         </FmtBtn>
+        <div className={styles.fmtSep} />
+        <button
+          className={styles.fmtBtn}
+          title="Indent list item (Tab)"
+          onMouseDown={e => { e.preventDefault(); if (!isInList()) return; fmt('indent'); trackEvent('notesIndent'); }}
+        >
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <line x1="1" y1="1.5" x2="11" y2="1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="4" y1="5" x2="11" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="4" y1="8.5" x2="11" y2="8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+        </button>
+        <button
+          className={styles.fmtBtn}
+          title="Outdent list item (Shift+Tab)"
+          onMouseDown={e => { e.preventDefault(); if (!isInList()) return; fmt('outdent'); trackEvent('notesOutdent'); }}
+        >
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <line x1="1" y1="1.5" x2="11" y2="1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="1" y1="5" x2="8" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="1" y1="8.5" x2="8" y2="8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+        </button>
       </div>
       <div
         ref={editorRef}
         className={styles.editor}
         contentEditable
         onInput={handleInput}
+        onKeyDown={handleKeyDown}
         onBlur={() => {
           if (editorRef.current) {
             const linked = linkifyHtml(editorRef.current.innerHTML);
