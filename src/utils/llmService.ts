@@ -44,7 +44,7 @@ export async function sendMessage(
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: systemPrompt,
         messages,
       }),
@@ -53,8 +53,12 @@ export async function sendMessage(
       const err = await resp.json().catch(() => ({}));
       throw new Error((err as { error?: { message?: string } }).error?.message ?? `Claude API error ${resp.status}`);
     }
-    const data = await resp.json() as { content: { type: string; text: string }[] };
-    return data.content.find(b => b.type === 'text')?.text ?? '';
+    const data = await resp.json() as { content: { type: string; text: string }[]; stop_reason: string };
+    const text = data.content.find(b => b.type === 'text')?.text ?? '';
+    if (data.stop_reason === 'max_tokens') {
+      return text + '\n\n[Response was truncated due to length. Try asking a more specific question.]';
+    }
+    return text;
   } else {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
