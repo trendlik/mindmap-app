@@ -29,6 +29,7 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   collapseNode: 'Collapse node',
   searchInMap: 'Search in map',
   aiChat: 'AI Chat',
+  aiChatCopy: 'AI Chat Copy',
   llmSettings: 'LLM Settings',
   notesIndent: 'Notes indent',
   notesOutdent: 'Notes outdent',
