@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDocFromServer, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { UsageStats } from '../contexts/UsageStatsContext';
 const isTestMode = () => !!window.__PLAYWRIGHT_TEST_USER__;
@@ -6,7 +6,7 @@ const isTestMode = () => !!window.__PLAYWRIGHT_TEST_USER__;
 export async function loadUsageStats(uid: string): Promise<UsageStats | null> {
   if (isTestMode()) return null;
   const ref = doc(db, 'users', uid, 'meta', 'usage');
-  const snap = await getDoc(ref);
+  const snap = await getDocFromServer(ref);
   if (!snap.exists()) return null;
   return snap.data() as UsageStats;
 }
