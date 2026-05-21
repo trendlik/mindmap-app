@@ -23,11 +23,13 @@ export interface UsageStats {
 interface UsageStatsContextValue {
   trackEvent: (feature: FeatureKey) => void;
   getStats: () => UsageStats;
+  resetStats: () => void;
 }
 
 const UsageStatsContext = createContext<UsageStatsContextValue>({
   trackEvent: () => {},
   getStats: () => ({ totalActiveMs: 0, features: {} }),
+  resetStats: () => {},
 });
 
 export function useUsageStats() {
@@ -38,7 +40,7 @@ const HIGH_FREQ: Set<FeatureKey> = new Set(['pan', 'zoom', 'nodeDrag']);
 const DEBOUNCE_MS = 500;
 const FIRESTORE_DEBOUNCE_MS = 2000;
 
-function emptyStats(): UsageStats {
+export function emptyStats(): UsageStats {
   return { totalActiveMs: 0, features: {} };
 }
 
@@ -86,6 +88,11 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
   const getStats = useCallback((): UsageStats => {
     return statsRef.current;
   }, []);
+
+  const resetStats = useCallback(() => {
+    statsRef.current = emptyStats();
+    flushToFirestore();
+  }, [flushToFirestore]);
 
   useEffect(() => {
     if (!uid) return;
@@ -183,7 +190,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
   }, [uid]);
 
   return (
-    <UsageStatsContext.Provider value={{ trackEvent, getStats }}>
+    <UsageStatsContext.Provider value={{ trackEvent, getStats, resetStats }}>
       {children}
     </UsageStatsContext.Provider>
   );
