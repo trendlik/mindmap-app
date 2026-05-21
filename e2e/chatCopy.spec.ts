@@ -172,6 +172,44 @@ test('copy button is NOT shown on user messages', async ({ page }) => {
   await expect(userBubble.getByRole('button', { name: 'Copy message' })).not.toBeAttached();
 });
 
+test('truncation warning is appended when stop_reason is max_tokens', async ({ page }) => {
+  await seedLlmSettings(page);
+
+  const TRUNCATED_TEXT = 'This is a very long response that got cut off.';
+  const TRUNCATION_NOTICE = '[Response was truncated due to length. Try asking a more specific question.]';
+
+  // Mock the Anthropic API to return stop_reason: 'max_tokens'
+  await page.route('**/api.anthropic.com/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'msg_truncated',
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text: TRUNCATED_TEXT }],
+        model: 'claude-haiku-4-5-20251001',
+        stop_reason: 'max_tokens',
+        usage: { input_tokens: 10, output_tokens: 4096 },
+      }),
+    });
+  });
+
+  await page.goto('/');
+  await page.getByText('maps').waitFor();
+  await openChat(page);
+
+  const dialog = page.getByRole('dialog', { name: 'AI Chat' });
+  await dialog.getByRole('textbox').fill('Tell me everything');
+  await dialog.getByRole('button', { name: 'Send' }).click();
+
+  // The assistant bubble should contain both the original text and the truncation notice
+  const assistantBubble = dialog.locator('[class*="assistantMsg"]').filter({ hasText: TRUNCATED_TEXT });
+  await expect(assistantBubble).toBeVisible({ timeout: 5000 });
+  await expect(assistantBubble).toContainText(TRUNCATED_TEXT);
+  await expect(assistantBubble).toContainText(TRUNCATION_NOTICE);
+});
+
 test('"Copied!" on one message does not affect another message', async ({ page }) => {
   await seedLlmSettings(page);
 
