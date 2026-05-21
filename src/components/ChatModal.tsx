@@ -86,10 +86,14 @@ export default function ChatModal({ onClose, onOpenSettings, nodes, selectedNode
   }
 
   async function handleCopy(msgId: string, content: string) {
-    await navigator.clipboard.writeText(content);
-    setCopiedId(msgId);
-    trackEvent('aiChatCopy');
-    setTimeout(() => setCopiedId(prev => prev === msgId ? null : prev), 1500);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(msgId);
+      trackEvent('aiChatCopy');
+      setTimeout(() => setCopiedId(prev => prev === msgId ? null : prev), 1500);
+    } catch {
+      // clipboard write failed silently (e.g. non-HTTPS or permission denied)
+    }
   }
 
   const noKey = !settings.apiKey;
@@ -151,7 +155,7 @@ export default function ChatModal({ onClose, onOpenSettings, nodes, selectedNode
                 <button
                   className={`${styles.copyBtn}${copiedId === m.id ? ` ${styles.copied}` : ''}`}
                   onClick={() => handleCopy(m.id, m.content)}
-                  aria-label="Copy message"
+                  aria-label={copiedId === m.id ? 'Copied' : 'Copy message'}
                 >
                   {copiedId === m.id ? 'Copied!' : '⎘'}
                 </button>

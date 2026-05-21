@@ -111,12 +111,12 @@ test('clicking copy button shows "Copied!" then reverts to copy icon', async ({ 
   await assistantBubble.hover();
   await copyBtn.click();
 
-  // Button should immediately show "Copied!"
-  await expect(copyBtn).toHaveText('Copied!');
+  // After click, aria-label changes to "Copied" and text changes to "Copied!"
+  await expect(assistantBubble.getByRole('button', { name: 'Copied' })).toHaveText('Copied!');
 
-  // After 1.6 s the button should revert to the copy icon
+  // After 1.6 s the button should revert to the copy icon (aria-label back to "Copy message")
   await page.waitForTimeout(1600);
-  await expect(copyBtn).toHaveText('⎘');
+  await expect(assistantBubble.getByRole('button', { name: 'Copy message' })).toHaveText('⎘');
 });
 
 test('copy button copies assistant message text to clipboard', async ({ page }) => {
@@ -170,4 +170,60 @@ test('copy button is NOT shown on user messages', async ({ page }) => {
   // Hover over the user bubble — no copy button should appear
   await userBubble.hover();
   await expect(userBubble.getByRole('button', { name: 'Copy message' })).not.toBeAttached();
+});
+
+test('"Copied!" on one message does not affect another message', async ({ page }) => {
+  await seedLlmSettings(page);
+
+  const replies = ['First assistant reply.', 'Second assistant reply.'];
+  let callCount = 0;
+  await page.route('**/api.anthropic.com/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'msg_test',
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text: replies[callCount++ % replies.length] }],
+        model: 'claude-haiku-4-5-20251001',
+        stop_reason: 'end_turn',
+        usage: { input_tokens: 10, output_tokens: 20 },
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.resolve() },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  await page.goto('/');
+  await page.getByText('maps').waitFor();
+  await page.getByTitle('AI Chat').click();
+
+  const dialog = page.getByRole('dialog', { name: 'AI Chat' });
+
+  // Send first message
+  await dialog.getByRole('textbox').fill('First');
+  await dialog.getByRole('button', { name: 'Send' }).click();
+  const bubble1 = dialog.locator('[class*="assistantMsg"]').filter({ hasText: replies[0] });
+  await expect(bubble1).toBeVisible({ timeout: 5000 });
+
+  // Send second message
+  await dialog.getByRole('textbox').fill('Second');
+  await dialog.getByRole('button', { name: 'Send' }).click();
+  const bubble2 = dialog.locator('[class*="assistantMsg"]').filter({ hasText: replies[1] });
+  await expect(bubble2).toBeVisible({ timeout: 5000 });
+
+  // Click copy on the first message
+  await bubble1.hover();
+  await bubble1.getByRole('button', { name: 'Copy message' }).click();
+  await expect(bubble1.getByRole('button', { name: 'Copied' })).toHaveText('Copied!');
+
+  // Second message's copy button should still show the copy icon, not "Copied!"
+  await expect(bubble2.getByRole('button', { name: 'Copy message' })).toHaveText('⎘');
 });
