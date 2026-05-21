@@ -165,16 +165,47 @@
 }
 
 .assistantMsg {
+  position: relative;
   align-self: flex-start;
   background: var(--bg-hover);
   color: var(--text-primary);
   border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px;
-  padding: 8px 12px;
+  padding: 8px 12px 26px;
   font-size: 13px;
   line-height: 1.5;
   max-width: 85%;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.copyBtn {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, color 0.1s;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.assistantMsg:hover .copyBtn,
+.copyBtn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copyBtn.copied {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .typing {
