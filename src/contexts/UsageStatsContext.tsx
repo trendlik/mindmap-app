@@ -59,10 +59,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
     if (!currentUid) return;
     const stats = statsRef.current;
     localStorage.setItem(localKey(currentUid), JSON.stringify(stats));
-    console.log('[usage] writing to uid:', currentUid, 'stats:', JSON.stringify(stats));
-    saveUsageStats(currentUid, stats)
-      .then(() => console.log('[usage] saved to Firestore'))
-      .catch((err) => { logger.logError('usage_stats_save_failed', err); console.error('[usage] Firestore save failed:', err); });
+    saveUsageStats(currentUid, stats).catch((err) => logger.logError('usage_stats_save_failed', err));
   }, []);
 
   const scheduleFirestoreFlush = useCallback(() => {
