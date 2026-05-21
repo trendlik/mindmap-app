@@ -120,6 +120,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
         }
         statsRef.current = merged;
         localStorage.setItem(localKey(uid), JSON.stringify(merged));
+        scheduleFirestoreFlush();
       }
     }).catch((err) => logger.logError('usage_stats_load_failed', err));
 
@@ -134,7 +135,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
         if (visibilityStartRef.current !== null) {
           statsRef.current.totalActiveMs += Date.now() - visibilityStartRef.current;
           visibilityStartRef.current = null;
-          scheduleFirestoreFlush();
+          flushToFirestore();
         }
       }
     }
