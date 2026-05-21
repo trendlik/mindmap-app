@@ -29,6 +29,7 @@ interface CanvasProps {
   canRedo: boolean;
   onExportJson: (map: MindMap) => void;
   onExportImg: (map: MindMap) => void;
+  onExportMd: (map: MindMap) => void;
   highlightQuery?: string;
   focusNodeId?: string;
 }
@@ -113,7 +114,7 @@ function findSpatialNeighbor(
   return best;
 }
 
-export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, highlightQuery, focusNodeId }: CanvasProps) {
+export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, onExportMd, highlightQuery, focusNodeId }: CanvasProps) {
   const { trackEvent } = useUsageStats();
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
@@ -1283,6 +1284,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onFitView={() => { fitView(); trackEvent('fitView'); }}
         onExportJson={() => onExportJson(map)}
         onExportImg={() => onExportImg(map)}
+        onExportMd={() => onExportMd(map)}
         onShowShortcuts={() => setShortcutsOpen(true)}
         onOpenChat={() => setChatOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}

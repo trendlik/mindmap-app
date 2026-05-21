@@ -6,7 +6,7 @@ import { UsageStatsProvider, useUsageStats } from './contexts/UsageStatsContext'
 import AuthGate from './components/AuthGate';
 import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
-import { exportJson, exportSvg } from './utils/export';
+import { exportJson, exportSvg, exportMarkdown } from './utils/export';
 import styles from './App.module.css';
 
 function AppInner() {
@@ -156,6 +156,7 @@ function AppInner() {
           canRedo={canRedo}
           onExportJson={exportJson}
           onExportImg={exportSvg}
+          onExportMd={exportMarkdown}
           highlightQuery={highlightQuery}
           focusNodeId={focusedNode?.mapId === activeMapId ? focusedNode.nodeId : undefined}
         />

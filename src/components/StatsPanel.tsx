@@ -11,6 +11,7 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   fitView: 'Fit view',
   exportJson: 'Export JSON',
   exportSvg: 'Export SVG',
+  exportMd: 'Export MD',
   createMap: 'Create map',
   renameMap: 'Rename map',
   deleteMap: 'Delete map',

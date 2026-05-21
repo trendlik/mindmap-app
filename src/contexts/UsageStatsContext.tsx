@@ -5,7 +5,7 @@ import { saveLogBatch } from '../store/logSync';
 
 export type FeatureKey =
   | 'addChild' | 'addSibling' | 'deleteNode' | 'autoLayout' | 'fitView'
-  | 'exportJson' | 'exportSvg' | 'createMap' | 'renameMap' | 'deleteMap'
+  | 'exportJson' | 'exportSvg' | 'exportMd' | 'createMap' | 'renameMap' | 'deleteMap'
   | 'switchMap' | 'archiveMap' | 'search' | 'nodeDrag' | 'nodeInlineEdit'
   | 'pan' | 'zoom' | 'undo' | 'redo' | 'addLink' | 'reparent'
   | 'toggleNotes' | 'collapseNode' | 'searchInMap' | 'aiChat' | 'llmSettings'
