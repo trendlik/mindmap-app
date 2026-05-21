@@ -113,7 +113,7 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
             merged.features[key] = lf;
           } else {
             merged.features[key] = {
-              count: lf.count + rf.count,
+              count: Math.max(lf.count, rf.count),
               lastUsed: lf.lastUsed > rf.lastUsed ? lf.lastUsed : rf.lastUsed,
             };
           }
