@@ -35,6 +35,7 @@ function AppInner() {
     updateLink,
     deleteLink,
     setMapArchived,
+    updateMapNumbering,
     applyAutoLayout,
     undo,
     redo,
@@ -159,6 +160,7 @@ function AppInner() {
           onExportMd={exportMarkdown}
           highlightQuery={highlightQuery}
           focusNodeId={focusedNode?.mapId === activeMapId ? focusedNode.nodeId : undefined}
+          onUpdateMapNumbering={updateMapNumbering}
         />
       </div>
     </AuthGate>

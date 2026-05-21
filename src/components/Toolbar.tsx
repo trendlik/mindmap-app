@@ -1,4 +1,4 @@
-import type { CustomLink } from '../store/useMindMapStore';
+import type { CustomLink, MapNumbering } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
 import styles from './Toolbar.module.css';
 
@@ -40,6 +40,10 @@ interface ToolbarProps {
   linkArrowFrom: boolean;
   linkArrowTo: boolean;
   linkStroke: CustomLink['stroke'];
+  numberingEnabled: boolean;
+  numberingStyle: MapNumbering['style'];
+  onToggleNumbering: () => void;
+  onSetNumberingStyle: (style: MapNumbering['style']) => void;
 }
 
 export default function Toolbar(props: ToolbarProps) {
@@ -53,6 +57,7 @@ export default function Toolbar(props: ToolbarProps) {
     onLayout, onFitView, onExportJson, onExportImg, onExportMd, onShowShortcuts, onOpenChat, onOpenSettings,
     hasSelected, notesOpen, isLinking, isReparenting, canReparent,
     selectedLink, linkArrowFrom, linkArrowTo, linkStroke,
+    numberingEnabled, numberingStyle, onToggleNumbering, onSetNumberingStyle,
   } = props;
 
   const showArrowFrom = selectedLink ? (selectedLink.arrowFrom ?? false) : linkArrowFrom;
@@ -103,6 +108,42 @@ export default function Toolbar(props: ToolbarProps) {
         )}
         {isCollapsed ? 'expand' : 'collapse'}
       </button>
+
+      <button
+        className={`${styles.btn} ${numberingEnabled ? styles.active : ''}`}
+        onClick={onToggleNumbering}
+        title="Toggle node numbering"
+        data-testid="numbering-toggle"
+      >
+        #
+      </button>
+      {numberingEnabled && (
+        <>
+          <button
+            className={`${styles.btn} ${styles.small} ${numberingStyle === 'prefix' ? styles.active : ''}`}
+            onClick={() => onSetNumberingStyle('prefix')}
+            title="Prefix style: number inside node"
+            data-testid="numbering-style-prefix"
+          >
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+              <text x="0" y="9" fontSize="8" fontFamily="sans-serif" fill="currentColor">1.2</text>
+              <rect x="7" y="1" width="6" height="8" rx="1.5" stroke="currentColor" strokeWidth="1" fill="none"/>
+            </svg>
+          </button>
+          <button
+            className={`${styles.btn} ${styles.small} ${numberingStyle === 'badge' ? styles.active : ''}`}
+            onClick={() => onSetNumberingStyle('badge')}
+            title="Badge style: number as corner badge"
+            data-testid="numbering-style-badge"
+          >
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+              <rect x="4" y="2" width="9" height="7" rx="1.5" stroke="currentColor" strokeWidth="1" fill="none"/>
+              <rect x="0" y="0" width="8" height="6" rx="1.5" fill="currentColor" opacity="0.25"/>
+              <text x="1" y="5.5" fontSize="5" fontFamily="sans-serif" fill="currentColor">1.2</text>
+            </svg>
+          </button>
+        </>
+      )}
 
       {/* Link style controls: shown when creating a link or editing one */}
       {(isLinking || selectedLink) && (

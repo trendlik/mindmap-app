@@ -1,8 +1,9 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
-import type { MindMap, MindMapNode, Edge, CustomLink } from '../store/useMindMapStore';
+import type { MindMap, MindMapNode, Edge, CustomLink, MapNumbering } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
 import { logger } from '../utils/logger';
+import { computeNodeNumbers } from '../utils/nodeNumbering';
 import { stripHtml } from '../utils/linkify';
 import Toolbar from './Toolbar';
 import NotesPanel from './NotesPanel';
@@ -32,6 +33,7 @@ interface CanvasProps {
   onExportMd: (map: MindMap) => void;
   highlightQuery?: string;
   focusNodeId?: string;
+  onUpdateMapNumbering: (mapId: string, numbering: MapNumbering | undefined) => void;
 }
 
 interface PanState {
@@ -114,7 +116,7 @@ function findSpatialNeighbor(
   return best;
 }
 
-export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, onExportMd, highlightQuery, focusNodeId }: CanvasProps) {
+export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, onExportMd, highlightQuery, focusNodeId, onUpdateMapNumbering }: CanvasProps) {
   const { trackEvent } = useUsageStats();
   const svgRef = useRef<SVGSVGElement>(null);
   const [tx, setTx] = useState(map?.tx ?? 0);
@@ -914,6 +916,16 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const linkingSource = linkingFrom ? map.nodes[linkingFrom] : null;
   const reparentingSource = reparentingFrom ? map.nodes[reparentingFrom] : null;
 
+  // Stable keys derived from tree structure only (not positions) so the memo
+  // doesn't re-run on every drag tick — only when nodes/edges are added or removed.
+  const edgesKey = map.edges.map(e => `${e.from}:${e.to}`).join(',');
+  const nodeIdsKey = Object.keys(map.nodes).sort().join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const nodeNumbers = useMemo(
+    () => map.numbering?.enabled ? computeNodeNumbers(map.nodes, map.edges) : {},
+    [map.numbering?.enabled, edgesKey, nodeIdsKey],
+  );
+
   return (
     <div className={styles.canvasWrap}>
       <svg
@@ -1133,6 +1145,46 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
                       </text>
                     );
                   })()}
+                  {map.numbering?.enabled && nodeNumbers[n.id] && (
+                    map.numbering.style === 'badge' ? (
+                      <g transform="translate(0,-14)" style={{ pointerEvents: 'none' }} data-number-badge="true">
+                        <rect
+                          x={0}
+                          y={0}
+                          width={nodeNumbers[n.id].length * 6 + 8}
+                          height={13}
+                          rx={4}
+                          fill={c.stroke}
+                          opacity={0.85}
+                        />
+                        <text
+                          x={(nodeNumbers[n.id].length * 6 + 8) / 2}
+                          y={9}
+                          textAnchor="middle"
+                          fontSize={8}
+                          fontWeight={600}
+                          fill={c.fill}
+                          fontFamily="'DM Sans', sans-serif"
+                          style={{ userSelect: 'none' }}
+                        >
+                          {nodeNumbers[n.id]}
+                        </text>
+                      </g>
+                    ) : (
+                      <text
+                        x={5}
+                        y={10}
+                        fontSize={9}
+                        fill={c.text}
+                        fontFamily="'DM Sans', sans-serif"
+                        opacity={0.55}
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        data-number-label="true"
+                      >
+                        {nodeNumbers[n.id]}
+                      </text>
+                    )
+                  )}
                   {n.link && (
                     <g transform={`translate(${w - 6},${6})`} style={{ cursor: 'pointer' }} onMouseDown={e => { e.stopPropagation(); if (n.link!.startsWith('#')) { location.hash = n.link!; } else { window.open(n.link, '_blank', 'noopener'); } }}>
                       <circle r={5.5} fill="#1D9E75" opacity=".15" />
@@ -1288,6 +1340,21 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         onShowShortcuts={() => setShortcutsOpen(true)}
         onOpenChat={() => setChatOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
+        numberingEnabled={map.numbering?.enabled ?? false}
+        numberingStyle={map.numbering?.style ?? 'prefix'}
+        onToggleNumbering={() => {
+          const current = map.numbering;
+          if (current?.enabled) {
+            onUpdateMapNumbering(map.id, { ...current, enabled: false });
+          } else {
+            onUpdateMapNumbering(map.id, { enabled: true, style: current?.style ?? 'prefix' });
+          }
+          trackEvent('toggleNumbering');
+        }}
+        onSetNumberingStyle={(style) => {
+          onUpdateMapNumbering(map.id, { enabled: map.numbering?.enabled ?? true, style });
+          trackEvent('toggleNumbering');
+        }}
       />
 
       {notesOpen && notesNodeId && map.nodes[notesNodeId] && (
