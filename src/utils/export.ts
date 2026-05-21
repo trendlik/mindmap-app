@@ -120,6 +120,53 @@ ${nodeSvg}
   a.click();
 }
 
+export function exportMarkdown(map: MindMap) {
+  const nodes = Object.values(map.nodes);
+  if (!nodes.length) return;
+
+  const childrenOf: Record<string, typeof nodes> = {};
+  for (const n of nodes) {
+    const key = n.parentId ?? '__root__';
+    if (!childrenOf[key]) childrenOf[key] = [];
+    childrenOf[key].push(n);
+  }
+  for (const key of Object.keys(childrenOf)) {
+    childrenOf[key].sort((a, b) => a.y - b.y);
+  }
+
+  const lines: string[] = [];
+
+  function traverse(node: (typeof nodes)[number]) {
+    const d = node.depth;
+    let line: string;
+    if (d === 0) {
+      line = `# ${node.label}`;
+    } else if (d === 1) {
+      line = `\n## ${node.label}`;
+    } else {
+      const indent = '  '.repeat(d - 2);
+      line = `${indent}- ${node.label}`;
+    }
+    lines.push(line);
+    if (node.notes) {
+      lines.push(...node.notes.split('\n').map(l => `> ${l}`));
+    }
+    for (const child of childrenOf[node.id] ?? []) {
+      traverse(child);
+    }
+  }
+
+  for (const root of childrenOf['__root__'] ?? []) {
+    traverse(root);
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${map.name || 'map'}.md`;
+  a.click();
+}
+
 function escapeXml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

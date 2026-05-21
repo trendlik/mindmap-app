@@ -27,6 +27,7 @@ interface ToolbarProps {
   onFitView: () => void;
   onExportJson: () => void;
   onExportImg: () => void;
+  onExportMd: () => void;
   onShowShortcuts: () => void;
   onOpenChat: () => void;
   onOpenSettings: () => void;
@@ -49,7 +50,7 @@ export default function Toolbar(props: ToolbarProps) {
     onToggleArrowFrom, onToggleArrowTo, onSetArrowFrom, onSetArrowTo, onSetLinkLabel,
     onToggleCollapse, canCollapse, isCollapsed,
     onUndo, onRedo, canUndo, canRedo,
-    onLayout, onFitView, onExportJson, onExportImg, onShowShortcuts, onOpenChat, onOpenSettings,
+    onLayout, onFitView, onExportJson, onExportImg, onExportMd, onShowShortcuts, onOpenChat, onOpenSettings,
     hasSelected, notesOpen, isLinking, isReparenting, canReparent,
     selectedLink, linkArrowFrom, linkArrowTo, linkStroke,
   } = props;
@@ -188,6 +189,7 @@ export default function Toolbar(props: ToolbarProps) {
       <div className={styles.sep} />
       <button className={styles.btn} onClick={() => { onExportJson(); trackEvent('exportJson'); }}>JSON</button>
       <button className={styles.btn} onClick={() => { onExportImg(); trackEvent('exportSvg'); }}>SVG</button>
+      <button className={styles.btn} onClick={() => { onExportMd(); trackEvent('exportMd'); }}>MD</button>
       <div className={`${styles.sep} ${styles.shortcutsSep}`} />
       <button className={`${styles.btn} ${styles.shortcutsBtn}`} onClick={onShowShortcuts} title="Keyboard shortcuts (?)">?</button>
       <div className={styles.sep} />
