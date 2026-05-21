@@ -35,6 +35,27 @@ Two workflows in `.github/workflows/`:
 
 To generate the service account key: Firebase Console → Project Settings → Service accounts → Generate new private key. Paste the full JSON as the `FIREBASE_SERVICE_ACCOUNT` secret value.
 
+## Implementation Standards
+
+Apply these rules whenever implementing a feature, fix, or refactor.
+
+### Usage tracking (logging)
+- Call `trackEvent(feature)` from `useUsageStats()` for every new user-facing action (e.g. a new toolbar button, a new sidebar action, a new keyboard shortcut).
+- Use an existing feature key if one fits; otherwise add a new string key that matches the pattern already used in `UsageStatsContext.tsx`.
+- Do not add `console.log` statements; remove any that appear during development before committing.
+
+### Tests
+- Add a Playwright E2E test in `e2e/` for every new user-facing flow.
+- Cover the happy path and the primary error or edge case.
+- Reuse existing page-object helpers and fixtures already present in `e2e/` rather than duplicating setup code.
+- Run `npm run test:e2e` and confirm tests pass before marking work done.
+
+### Documentation
+- Update the **Architecture** section of this file (`CLAUDE.md`) whenever the data model, component hierarchy, state shape, or Firestore path changes.
+- Update `.env.example` whenever a new `VITE_*` env var is introduced.
+- Update `firestore.rules` and the Firestore sync section of this file whenever the Firestore schema or security rules change.
+- Do not create separate documentation files; keep all project-level docs in this file.
+
 ## Architecture
 
 React 18 + TypeScript + Vite app for freeform mind mapping. Firebase Auth (Google sign-in) + Firestore for per-user cloud persistence. localStorage used as a fast cache.
