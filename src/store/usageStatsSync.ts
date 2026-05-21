@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocFromServer, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { UsageStats } from '../contexts/UsageStatsContext';
 const isTestMode = () => !!window.__PLAYWRIGHT_TEST_USER__;
@@ -15,4 +15,10 @@ export async function saveUsageStats(uid: string, stats: UsageStats): Promise<vo
   if (isTestMode()) return;
   const ref = doc(db, 'users', uid, 'meta', 'usage');
   await setDoc(ref, stats);
+  try {
+    const snap = await getDocFromServer(ref);
+    console.log('[usage] server verify - exists:', snap.exists(), snap.data());
+  } catch (e) {
+    console.error('[usage] server verify failed:', e);
+  }
 }
