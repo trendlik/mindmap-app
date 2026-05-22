@@ -184,3 +184,40 @@ test('stats panel can be opened and closed multiple times', async ({ page }) => 
     await expect(statsDialog(page)).not.toBeAttached();
   }
 });
+
+// ─── 7. "Since" date display (issue #68) ─────────────────────────────────────
+
+test('stats panel shows a "Since" line below Total active time', async ({ page }) => {
+  await avatarBtn(page).click();
+  const dialog = statsDialog(page);
+  // The element has class "since" and starts with the word "Since"
+  const sinceEl = dialog.locator('[class*="since"]');
+  await expect(sinceEl).toBeVisible();
+  await expect(sinceEl).toContainText('Since');
+});
+
+test('"Since" line shows a plausible year (202x or later)', async ({ page }) => {
+  await avatarBtn(page).click();
+  const dialog = statsDialog(page);
+  const sinceText = await dialog.locator('[class*="since"]').textContent();
+  expect(sinceText).toBeTruthy();
+  // Must contain a 4-digit year starting with 202 or higher
+  expect(sinceText).toMatch(/20\d{2}/);
+});
+
+test('after Reset, "Since" date updates to today', async ({ page }) => {
+  await avatarBtn(page).click();
+  const dialog = statsDialog(page);
+
+  // Capture the year before reset (should already be current year)
+  const currentYear = new Date().getFullYear().toString();
+
+  // Click Reset
+  await dialog.getByRole('button', { name: 'Reset' }).click();
+
+  // Re-open the panel (Reset closes or resets state; panel stays open based on implementation)
+  // The panel stays open — just re-read the since element
+  const sinceEl = dialog.locator('[class*="since"]');
+  await expect(sinceEl).toBeVisible();
+  await expect(sinceEl).toContainText(currentYear);
+});

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUsageStats, emptyStats } from '../contexts/UsageStatsContext';
+import { useUsageStats } from '../contexts/UsageStatsContext';
 import type { FeatureKey, UsageStats } from '../contexts/UsageStatsContext';
 import styles from './StatsPanel.module.css';
 
@@ -107,7 +107,10 @@ export default function StatsPanel({ onClose }: StatsPanelProps) {
         </div>
         <div className={styles.totalTime}>
           Total active time: <strong>{formatMs(stats.totalActiveMs)}</strong>
-          <button className={styles.resetBtn} onClick={() => { resetStats(); setStats(emptyStats()); }}>Reset</button>
+          <button className={styles.resetBtn} onClick={() => { resetStats(); setStats(getStats()); }}>Reset</button>
+        </div>
+        <div className={styles.since}>
+          Since {new Date(stats.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
         <div className={styles.tableWrap}>
           <table className={styles.table}>

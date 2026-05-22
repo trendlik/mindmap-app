@@ -19,6 +19,7 @@ export interface FeatureStat {
 export interface UsageStats {
   totalActiveMs: number;
   features: Partial<Record<FeatureKey, FeatureStat>>;
+  createdAt: string;
 }
 
 interface UsageStatsContextValue {
@@ -29,7 +30,7 @@ interface UsageStatsContextValue {
 
 const UsageStatsContext = createContext<UsageStatsContextValue>({
   trackEvent: () => {},
-  getStats: () => ({ totalActiveMs: 0, features: {} }),
+  getStats: () => emptyStats(),
   resetStats: () => {},
 });
 
@@ -42,7 +43,7 @@ const DEBOUNCE_MS = 500;
 const FIRESTORE_DEBOUNCE_MS = 2000;
 
 export function emptyStats(): UsageStats {
-  return { totalActiveMs: 0, features: {} };
+  return { totalActiveMs: 0, features: {}, createdAt: new Date().toISOString() };
 }
 
 function localKey(uid: string) {
@@ -101,7 +102,16 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
     const stored = localStorage.getItem(localKey(uid));
     if (stored) {
       try {
-        statsRef.current = JSON.parse(stored) as UsageStats;
+        const parsed = JSON.parse(stored) as UsageStats;
+        if (!parsed.createdAt) {
+          const dates = Object.values(parsed.features ?? {})
+            .map(f => f?.lastUsed)
+            .filter((d): d is string => !!d);
+          parsed.createdAt = dates.length > 0
+            ? dates.reduce((a, b) => (a < b ? a : b))
+            : new Date().toISOString();
+        }
+        statsRef.current = parsed;
       } catch {
         statsRef.current = emptyStats();
       }
@@ -110,9 +120,21 @@ export function UsageStatsProvider({ uid, children }: { uid: string | null; chil
     loadUsageStats(uid).then(remote => {
       if (remote) {
         const local = statsRef.current;
+
+        const remoteCreatedAt = remote.createdAt
+          ?? (() => {
+            const dates = Object.values(remote.features)
+              .map(f => f?.lastUsed)
+              .filter((d): d is string => !!d);
+            return dates.length > 0 ? dates.reduce((a, b) => (a < b ? a : b)) : new Date().toISOString();
+          })();
+        const localCreatedAt = local.createdAt;
+        const mergedCreatedAt = remoteCreatedAt < localCreatedAt ? remoteCreatedAt : localCreatedAt;
+
         const merged: UsageStats = {
           totalActiveMs: Math.max(remote.totalActiveMs, local.totalActiveMs),
           features: { ...remote.features },
+          createdAt: mergedCreatedAt,
         };
         for (const key of Object.keys(local.features) as FeatureKey[]) {
           const lf = local.features[key]!;
