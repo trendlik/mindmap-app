@@ -181,9 +181,9 @@ twoMapTest('clicking an archived item in the expanded section does not change th
   async ({ page }) => {
     // Select Beta Map first to establish a known active map
     await activeItem(page, 'Beta Map').click();
-    // Wait for Beta Map to become active (active item has a distinct background
-    // class; we verify the canvas root node label instead, which is cheaper)
-    await expect(page.locator('[data-node-id]')).toBeVisible();
+    // Wait until Beta Map's root node is on the canvas — not just any [data-node-id]
+    // (Alpha Map's node is already visible, so a plain toBeVisible() resolves too early).
+    await expect(page.locator('[data-node-id]').first()).toContainText('Beta Map');
 
     // Capture the current canvas title before any archive interaction
     const canvasBefore = await page.locator('[data-node-id]').first().textContent();
