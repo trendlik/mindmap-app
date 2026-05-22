@@ -186,7 +186,7 @@ test('removing an emoji icon clears it from the selected node', async ({ page })
   await page.locator('[class*="emojiBtn"]').first().click();
   await expect(page.locator('[class*="iconEmoji"]')).toBeVisible();
 
-  // Remove the icon
-  await page.getByTitle('Remove icon').click();
+  // Remove the icon (exact: true avoids matching "Change or remove icon")
+  await page.getByTitle('Remove icon', { exact: true }).click();
   await expect(page.locator('[class*="iconEmoji"]')).toHaveCount(0);
 });

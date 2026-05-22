@@ -135,8 +135,9 @@ viewPersistTest('saved view transform is restored when switching between maps', 
   const aTransformBefore = parseTransform(await transformG.getAttribute('transform'));
   expect(aTransformBefore.scale).toBeCloseTo(0.8, 1);
 
-  // Switch to Map B
+  // Switch to Map B and wait for the Canvas useEffect to apply Map B's saved view
   await page.locator('aside nav').getByText('Map B').click();
+  await expect(transformG).toHaveAttribute('transform', /scale\(0\.6/);
   const bTransform = parseTransform(await transformG.getAttribute('transform'));
   expect(bTransform.scale).toBeCloseTo(0.6, 1);
   expect(bTransform.tx).toBeCloseTo(60, 0);
@@ -144,6 +145,7 @@ viewPersistTest('saved view transform is restored when switching between maps', 
 
   // Switch back to Map A — saved view must be restored
   await page.locator('aside nav').getByText('Map A').click();
+  await expect(transformG).toHaveAttribute('transform', /scale\(0\.8/);
   const aTransformAfter = parseTransform(await transformG.getAttribute('transform'));
   expect(aTransformAfter.scale).toBeCloseTo(0.8, 1);
 });
