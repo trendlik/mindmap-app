@@ -1,6 +1,6 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page, type Locator } from '@playwright/test';
 
-const TEST_USER = {
+export const TEST_USER = {
   uid: 'playwright-test-uid',
   email: 'test@playwright.local',
   displayName: 'Test User',
@@ -11,6 +11,54 @@ export const TEST_IDS = {
   rootNodeId: 'test-root-node-id-stable',
   mapName: 'my first map',
 };
+
+export function makeNode(
+  id: string,
+  label: string,
+  x: number,
+  y: number,
+  parentId: string | null = null,
+  depth: number = 0,
+  w: number = 90,
+  h: number = 36,
+) {
+  return { id, label, x, y, parentId, depth, w, h };
+}
+
+export function makeMap(id: string, name: string, nodeId: string) {
+  return {
+    id,
+    name,
+    nodes: { [nodeId]: makeNode(nodeId, name, 500, 300) },
+    edges: [] as { from: string; to: string }[],
+    links: [] as unknown[],
+    tx: 0,
+    ty: 0,
+    scale: 1,
+  };
+}
+
+export function parseTransform(transform: string | null): { tx: number; ty: number; scale: number } {
+  if (!transform) return { tx: 0, ty: 0, scale: 1 };
+  const tm = transform.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
+  const sm = transform.match(/scale\(\s*([-\d.]+)\s*\)/);
+  return {
+    tx: tm ? parseFloat(tm[1]) : 0,
+    ty: tm ? parseFloat(tm[2]) : 0,
+    scale: sm ? parseFloat(sm[1]) : 1,
+  };
+}
+
+export async function waitForEditInput(page: Page): Promise<Locator> {
+  const input = page.locator('input[style]');
+  await input.waitFor({ state: 'visible', timeout: 2000 });
+  return input;
+}
+
+export async function waitForPageReady(page: Page): Promise<void> {
+  await page.goto('/');
+  await page.getByText('maps', { exact: true }).waitFor();
+}
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -52,7 +100,7 @@ export const test = base.extend({
     }, { user: TEST_USER, ...TEST_IDS });
 
     await page.goto('/');
-    await page.getByText('maps').waitFor();
+    await page.getByText('maps', { exact: true }).waitFor();
     await use(page);
   },
 });

@@ -19,7 +19,7 @@
  *    in the browser context, bypassing CDP reliability issues.
  */
 
-import { test, expect, TEST_IDS } from './fixtures';
+import { test, expect, TEST_IDS, waitForEditInput } from './fixtures';
 
 // Enable touch mode for every test in this file.
 // NOTE: hasTouch: true is sufficient for touch event dispatch. isMobile: true is
@@ -174,8 +174,7 @@ test('touch double-tap on a node does NOT re-centre the view', async ({ page }) 
   expect(afterTransform).toBe(beforeTransform);
 
   // The inline edit input should have appeared (confirming it was a node double-tap).
-  const editInput = page.locator('input[style]');
-  await expect(editInput).toBeVisible();
+  await waitForEditInput(page);
 
   // Clean up — dismiss the edit input.
   await page.keyboard.press('Escape');
