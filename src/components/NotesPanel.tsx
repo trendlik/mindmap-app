@@ -4,6 +4,18 @@ import { logger } from '../utils/logger';
 import { linkifyHtml, linkifyNode } from '../utils/linkify';
 import { useUsageStats } from '../contexts/UsageStatsContext';
 
+const PANEL_WIDTH_KEY = 'notesPanelWidth';
+const PANEL_MIN_WIDTH = 200;
+const PANEL_MAX_WIDTH = 600;
+const PANEL_DEFAULT_WIDTH = 280;
+
+function getSavedWidth(): number {
+  const saved = localStorage.getItem(PANEL_WIDTH_KEY);
+  if (!saved) return PANEL_DEFAULT_WIDTH;
+  const n = parseInt(saved, 10);
+  return isNaN(n) ? PANEL_DEFAULT_WIDTH : Math.min(Math.max(n, PANEL_MIN_WIDTH), PANEL_MAX_WIDTH);
+}
+
 const EMOJIS = [
   '💡', '🔥', '⭐', '✅', '❌', '⚠️', '🔑', '📌',
   '🎯', '💰', '📝', '🚀', '❓', '💬', '📊', '🏆',
@@ -75,9 +87,48 @@ function FmtBtn({ command, title, children }: FmtBtnProps) {
 
 export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onChangeLink, onChangeIcon, onClose }: NotesPanelProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const isInternalUpdate = useRef(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(getSavedWidth);
   const { trackEvent } = useUsageStats();
+
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => { dragCleanupRef.current?.(); };
+  }, []);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = panelRef.current!.getBoundingClientRect().width;
+
+    function onMouseMove(ev: MouseEvent) {
+      const delta = startX - ev.clientX;
+      const newWidth = Math.min(Math.max(startWidth + delta, PANEL_MIN_WIDTH), PANEL_MAX_WIDTH);
+      if (panelRef.current) panelRef.current.style.width = `${newWidth}px`;
+    }
+
+    function cleanup() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      dragCleanupRef.current = null;
+    }
+
+    function onMouseUp(ev: MouseEvent) {
+      cleanup();
+      const delta = startX - ev.clientX;
+      const finalWidth = Math.min(Math.max(startWidth + delta, PANEL_MIN_WIDTH), PANEL_MAX_WIDTH);
+      setPanelWidth(finalWidth);
+      localStorage.setItem(PANEL_WIDTH_KEY, String(finalWidth));
+      trackEvent('notesPanelResize');
+    }
+
+    dragCleanupRef.current = cleanup;
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [trackEvent]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Tab') {
@@ -127,7 +178,12 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
   }
 
   return (
-    <div className={styles.panel}>
+    <div ref={panelRef} className={styles.panel} style={{ width: panelWidth }} data-testid="notes-panel">
+      <div
+        className={styles.resizeHandle}
+        onMouseDown={handleResizeMouseDown}
+        data-testid="notes-resize-handle"
+      />
       <div className={styles.header}>
         <span className={styles.label}>{nodeLabel}</span>
         <button className={styles.closeBtn} onClick={onClose} title="Close notes">

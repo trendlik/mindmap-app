@@ -35,6 +35,7 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   notesIndent: 'Notes indent',
   notesOutdent: 'Notes outdent',
   toggleNumbering: 'Toggle numbering',
+  notesPanelResize: 'Notes panel resize',
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_LABELS) as FeatureKey[];

@@ -1,3 +1,20 @@
+.resizeHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 1;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  transition: background 0.15s;
+}
+
+.resizeHandle:hover,
+.resizeHandle:active {
+  background: rgba(29, 158, 117, 0.15);
+}
+
 .panel {
   position: absolute;
   top: 60px;
@@ -296,5 +313,9 @@
     max-height: 50vh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     z-index: 30;
+  }
+
+  .resizeHandle {
+    display: none;
   }
 }
