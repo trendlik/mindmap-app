@@ -145,6 +145,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState('');
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
   const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
   const [statsOpen, setStatsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -461,38 +462,100 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   ))}
                 </div>
               )}
-              {labelEditingId === id && (
-                <div className={styles.labelEditor} onClick={e => e.stopPropagation()}>
-                  {(m.labels ?? []).length > 0 && (
-                    <div className={styles.labelChipsEdit}>
-                      {(m.labels ?? []).map(l => (
-                        <span key={l} className={styles.labelChipEdit}>
-                          #{l}
-                          <button onClick={() => onUpdateLabels(id, (m.labels ?? []).filter(x => x !== l))}>×</button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <input
-                    className={styles.labelInput}
-                    placeholder="Add label…"
-                    value={labelInput}
-                    autoFocus
-                    onChange={e => setLabelInput(e.target.value)}
-                    onKeyDown={e => {
-                      if ((e.key === 'Enter' || e.key === ',') && labelInput.trim()) {
-                        e.preventDefault();
-                        const newLabel = labelInput.trim();
-                        if (newLabel && !(m.labels ?? []).includes(newLabel)) {
-                          onUpdateLabels(id, [...(m.labels ?? []), newLabel]);
+              {labelEditingId === id && (() => {
+                const allLabels = [...new Set(Object.values(maps).flatMap(m2 => m2.labels ?? []))].sort();
+                const suggestions = labelInput.trim()
+                  ? allLabels.filter(l => l.toLowerCase().includes(labelInput.toLowerCase()) && !(m.labels ?? []).includes(l))
+                  : [];
+                const acceptSuggestion = (label: string) => {
+                  if (!(m.labels ?? []).includes(label)) {
+                    onUpdateLabels(id, [...(m.labels ?? []), label]);
+                  }
+                  setLabelInput('');
+                  setSuggestionIndex(-1);
+                };
+                return (
+                  <div className={styles.labelEditor} onClick={e => e.stopPropagation()}>
+                    {(m.labels ?? []).length > 0 && (
+                      <div className={styles.labelChipsEdit}>
+                        {(m.labels ?? []).map(l => (
+                          <span key={l} className={styles.labelChipEdit}>
+                            #{l}
+                            <button onClick={() => onUpdateLabels(id, (m.labels ?? []).filter(x => x !== l))}>×</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      className={styles.labelInput}
+                      placeholder="Add label…"
+                      value={labelInput}
+                      autoFocus
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={suggestions.length > 0}
+                      aria-controls={`label-suggestions-${id}`}
+                      aria-activedescendant={suggestionIndex >= 0 ? `suggestion-${id}-${suggestionIndex}` : undefined}
+                      onChange={e => { setLabelInput(e.target.value); setSuggestionIndex(-1); }}
+                      onKeyDown={e => {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setSuggestionIndex(i => Math.min(i + 1, suggestions.length - 1));
+                          return;
                         }
-                        setLabelInput('');
-                      }
-                      if (e.key === 'Escape') setLabelEditingId(null);
-                    }}
-                  />
-                </div>
-              )}
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSuggestionIndex(i => Math.max(i - 1, -1));
+                          return;
+                        }
+                        if (e.key === 'Escape') {
+                          if (suggestions.length > 0) {
+                            setSuggestionIndex(-1);
+                            setLabelInput('');
+                          } else {
+                            setLabelEditingId(null);
+                          }
+                          return;
+                        }
+                        if ((e.key === 'Enter' || e.key === ',')) {
+                          e.preventDefault();
+                          if (suggestionIndex >= 0 && suggestions[suggestionIndex]) {
+                            acceptSuggestion(suggestions[suggestionIndex]);
+                          } else if (labelInput.trim()) {
+                            const newLabel = labelInput.trim();
+                            if (!(m.labels ?? []).includes(newLabel)) {
+                              onUpdateLabels(id, [...(m.labels ?? []), newLabel]);
+                            }
+                            setLabelInput('');
+                            setSuggestionIndex(-1);
+                          }
+                        }
+                      }}
+                    />
+                    {suggestions.length > 0 && (
+                      <ul
+                        className={styles.labelSuggestions}
+                        id={`label-suggestions-${id}`}
+                        role="listbox"
+                        aria-label="Label suggestions"
+                        data-testid="label-suggestions"
+                      >
+                        {suggestions.map((s, i) => (
+                          <li key={s} role="option" aria-selected={i === suggestionIndex}>
+                            <button
+                              id={`suggestion-${id}-${i}`}
+                              className={`${styles.labelSuggestionItem} ${i === suggestionIndex ? styles.labelSuggestionItemActive : ''}`}
+                              onMouseDown={e => { e.preventDefault(); acceptSuggestion(s); }}
+                            >
+                              {s}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })()}
               {nodeHits[id] && nodeHits[id].map(hit => {
                 const itemIndex = resultItems.findIndex(r => r.type === 'node' && r.mapId === id && r.nodeId === hit.nodeId);
                 const isFocused = focusedResultIndex === itemIndex;

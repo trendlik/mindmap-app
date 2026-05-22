@@ -206,3 +206,113 @@ test('duplicate labels are not added — adding the same label twice keeps only 
   const workChips = alphaWrap.locator('span').filter({ hasText: /^#work$/ });
   await expect(workChips).toHaveCount(1);
 });
+
+// ---------------------------------------------------------------------------
+// i) Autocomplete — clicking a suggestion adds the label
+// ---------------------------------------------------------------------------
+test('autocomplete — typing a substring shows matching suggestion and clicking it adds the label', async ({ page }) => {
+  // Seed: Alpha has ['work', 'urgent'], Beta has ['work'], Gamma has ['personal']
+  // Open label editor on Gamma (which only has 'personal')
+  const nameSpan = page.locator('aside nav').getByText('Gamma').first();
+  await nameSpan.hover();
+  const tagBtn = nameSpan.locator('..').getByTitle('Edit labels');
+  await tagBtn.click();
+
+  const labelInput = page.locator('aside').locator('input[placeholder="Add label…"]');
+  await expect(labelInput).toBeVisible();
+
+  // Type a substring that matches 'work' and 'urgent' but not 'personal'
+  await labelInput.fill('urg');
+
+  // Autocomplete dropdown should appear with 'urgent' suggestion
+  const suggestions = page.locator('[class*="labelSuggestions"]');
+  await expect(suggestions).toBeVisible();
+  const urgentBtn = suggestions.getByRole('button', { name: 'urgent' });
+  await expect(urgentBtn).toBeVisible();
+
+  // Click the suggestion
+  await urgentBtn.click();
+
+  // Label should be added and dropdown should close
+  await expect(suggestions).not.toBeVisible();
+  const gammaWrap = page.locator('aside nav').getByText('Gamma').first().locator('../..');
+  // Close the editor so display chips are rendered
+  await labelInput.press('Escape');
+  await expect(gammaWrap.getByText('#urgent', { exact: true })).toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// j) Autocomplete — keyboard navigation (ArrowDown + Enter)
+// ---------------------------------------------------------------------------
+test('autocomplete — arrow keys navigate suggestions and Enter accepts the highlighted one', async ({ page }) => {
+  // Seed: Alpha has ['work', 'urgent'], Beta has ['work'], Gamma has ['personal']
+  // Open label editor on Gamma; type 'ork' which matches 'work' (personal is already on Gamma,
+  // so only 'work' should appear in suggestions)
+  const nameSpan = page.locator('aside nav').getByText('Gamma').first();
+  await nameSpan.hover();
+  const tagBtn = nameSpan.locator('..').getByTitle('Edit labels');
+  await tagBtn.click();
+
+  const labelInput = page.locator('aside').locator('input[placeholder="Add label…"]');
+  await expect(labelInput).toBeVisible();
+
+  // Type 'ork' — matches 'work' which is on Alpha and Beta but not on Gamma
+  await labelInput.fill('ork');
+
+  const suggestions = page.locator('[class*="labelSuggestions"]');
+  await expect(suggestions).toBeVisible();
+
+  // Press ArrowDown to highlight the first suggestion
+  await labelInput.press('ArrowDown');
+
+  // First suggestion should be highlighted (has active class)
+  const activeItem = suggestions.locator('[class*="labelSuggestionItemActive"]');
+  await expect(activeItem).toBeVisible();
+  await expect(activeItem).toHaveText('work');
+
+  // Press Enter to accept
+  await labelInput.press('Enter');
+
+  // Dropdown should close and label should be added
+  await expect(suggestions).not.toBeVisible();
+  await labelInput.press('Escape');
+  const gammaWrap = page.locator('aside nav').getByText('Gamma').first().locator('../..');
+  await expect(gammaWrap.getByText('#work', { exact: true })).toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// k) Autocomplete — no suggestion when label is already on the current map
+// ---------------------------------------------------------------------------
+test('autocomplete — no suggestion shown for a label already on the current map', async ({ page }) => {
+  // Seed: Alpha has ['work', 'urgent'] — open label editor on Alpha and type 'work'
+  const nameSpan = page.locator('aside nav').getByText('Alpha').first();
+  await nameSpan.hover();
+  const tagBtn = nameSpan.locator('..').getByTitle('Edit labels');
+  await tagBtn.click();
+
+  const labelInput = page.locator('aside').locator('input[placeholder="Add label…"]');
+  await expect(labelInput).toBeVisible();
+
+  // Type the exact label already on Alpha
+  await labelInput.fill('work');
+
+  // Suggestions dropdown should NOT appear because 'work' is already assigned to Alpha
+  const suggestions = page.locator('[class*="labelSuggestions"]');
+  await expect(suggestions).not.toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// l) Autocomplete — no dropdown when input is empty
+// ---------------------------------------------------------------------------
+test('autocomplete — no dropdown visible when input is empty', async ({ page }) => {
+  const nameSpan = page.locator('aside nav').getByText('Beta').first();
+  await nameSpan.hover();
+  const tagBtn = nameSpan.locator('..').getByTitle('Edit labels');
+  await tagBtn.click();
+
+  const labelInput = page.locator('aside').locator('input[placeholder="Add label…"]');
+  await expect(labelInput).toBeVisible();
+  // Input is empty by default — dropdown should not be visible
+  const suggestions = page.locator('[class*="labelSuggestions"]');
+  await expect(suggestions).not.toBeVisible();
+});
