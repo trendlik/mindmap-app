@@ -9,7 +9,7 @@ export type FeatureKey =
   | 'switchMap' | 'archiveMap' | 'search' | 'nodeDrag' | 'nodeInlineEdit'
   | 'pan' | 'zoom' | 'undo' | 'redo' | 'addLink' | 'reparent'
   | 'toggleNotes' | 'collapseNode' | 'searchInMap' | 'aiChat' | 'llmSettings'
-  | 'notesIndent' | 'notesOutdent' | 'aiChatCopy' | 'toggleNumbering';
+  | 'notesIndent' | 'notesOutdent' | 'aiChatCopy' | 'toggleNumbering' | 'notesPanelResize';
 
 export interface FeatureStat {
   count: number;
