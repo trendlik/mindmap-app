@@ -16,13 +16,7 @@
  */
 
 import { test as base, expect } from '@playwright/test';
-
-// ─── shared test-user stub ──────────────────────────────────────────────────
-const TEST_USER = {
-  uid: 'playwright-test-uid',
-  email: 'test@playwright.local',
-  displayName: 'Test User',
-};
+import { TEST_USER, makeNode, waitForPageReady, waitForEditInput } from './fixtures';
 
 // ─── node IDs used across tests ─────────────────────────────────────────────
 const IDS = {
@@ -61,39 +55,33 @@ const SELECTED_STROKE = '#1D9E75';
 
 const fiveNodeTest = base.extend<{ page: import('@playwright/test').Page }>({
   page: async ({ page }, use) => {
+    const state = {
+      maps: {
+        [IDS.mapId]: {
+          id: IDS.mapId,
+          name: 'Arrow Nav Map',
+          nodes: {
+            [IDS.center]: makeNode(IDS.center, 'Center', 500, 300, null, 1),
+            [IDS.right]:  makeNode(IDS.right,  'Right',  800, 300, null, 1),
+            [IDS.left]:   makeNode(IDS.left,   'Left',   200, 300, null, 1),
+            [IDS.above]:  makeNode(IDS.above,  'Above',  500, 100, null, 1),
+            [IDS.below]:  makeNode(IDS.below,  'Below',  500, 500, null, 1),
+          },
+          edges: [],
+          links: [],
+          tx: 0,
+          ty: 0,
+          scale: 0.999,
+        },
+      },
+      mapOrder: [IDS.mapId],
+    };
     await page.addInitScript((params) => {
       window.__PLAYWRIGHT_TEST_USER__ = params.user;
+      localStorage.setItem('mindmaps_v2', JSON.stringify(params.state));
+    }, { user: TEST_USER, state });
 
-      function node(id: string, label: string, x: number, y: number) {
-        return { id, label, x, y, parentId: null, depth: 1, w: 90, h: 36 };
-      }
-
-      const state = {
-        maps: {
-          [params.mapId]: {
-            id: params.mapId,
-            name: 'Arrow Nav Map',
-            nodes: {
-              [params.center]: node(params.center, 'Center', 500, 300),
-              [params.right]:  node(params.right,  'Right',  800, 300),
-              [params.left]:   node(params.left,   'Left',   200, 300),
-              [params.above]:  node(params.above,  'Above',  500, 100),
-              [params.below]:  node(params.below,  'Below',  500, 500),
-            },
-            edges: [],
-            links: [],
-            tx: 0,
-            ty: 0,
-            scale: 1,
-          },
-        },
-        mapOrder: [params.mapId],
-      };
-      localStorage.setItem('mindmaps_v2', JSON.stringify(state));
-    }, { user: TEST_USER, ...IDS });
-
-    await page.goto('/');
-    await page.getByText('maps').waitFor();
+    await waitForPageReady(page);
     await use(page);
   },
 });
@@ -107,40 +95,29 @@ const SINGLE_IDS = {
 
 const singleNodeTest = base.extend<{ page: import('@playwright/test').Page }>({
   page: async ({ page }, use) => {
+    const state = {
+      maps: {
+        [SINGLE_IDS.mapId]: {
+          id: SINGLE_IDS.mapId,
+          name: 'Single Node Map',
+          nodes: {
+            [SINGLE_IDS.onlyNode]: makeNode(SINGLE_IDS.onlyNode, 'Solo', 500, 300),
+          },
+          edges: [],
+          links: [],
+          tx: 0,
+          ty: 0,
+          scale: 1,
+        },
+      },
+      mapOrder: [SINGLE_IDS.mapId],
+    };
     await page.addInitScript((params) => {
       window.__PLAYWRIGHT_TEST_USER__ = params.user;
+      localStorage.setItem('mindmaps_v2', JSON.stringify(params.state));
+    }, { user: TEST_USER, state });
 
-      const state = {
-        maps: {
-          [params.mapId]: {
-            id: params.mapId,
-            name: 'Single Node Map',
-            nodes: {
-              [params.onlyNode]: {
-                id: params.onlyNode,
-                label: 'Solo',
-                x: 500,
-                y: 300,
-                parentId: null,
-                depth: 0,
-                w: 90,
-                h: 36,
-              },
-            },
-            edges: [],
-            links: [],
-            tx: 0,
-            ty: 0,
-            scale: 1,
-          },
-        },
-        mapOrder: [params.mapId],
-      };
-      localStorage.setItem('mindmaps_v2', JSON.stringify(state));
-    }, { user: TEST_USER, ...SINGLE_IDS });
-
-    await page.goto('/');
-    await page.getByText('maps').waitFor();
+    await waitForPageReady(page);
     await use(page);
   },
 });
@@ -212,8 +189,7 @@ fiveNodeTest.describe('arrow key spatial navigation', () => {
     async ({ page }) => {
       // Select center then enter edit mode with double-click
       await page.locator(nodeG(IDS.center)).dblclick();
-      const editInput = page.locator('input[style]');
-      await editInput.waitFor({ state: 'visible', timeout: 2000 });
+      const editInput = await waitForEditInput(page);
 
       // Arrow key should move the cursor inside the text input, not navigate
       await page.keyboard.press('ArrowRight');

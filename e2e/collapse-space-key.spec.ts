@@ -8,7 +8,7 @@
  * Pressing Space on a leaf node (no children) does nothing.
  */
 
-import { test as sharedTest, expect } from './fixtures';
+import { test as sharedTest, expect, TEST_USER, makeNode, waitForPageReady } from './fixtures';
 
 const IDS = {
   mapId: 'collapse-test-map-id',
@@ -21,54 +21,30 @@ const IDS = {
 
 const collapseTest = sharedTest.extend<{ page: import('@playwright/test').Page }>({
   page: async ({ page }, use) => {
-    await page.addInitScript((params) => {
-      window.__PLAYWRIGHT_TEST_USER__ = {
-        uid: 'playwright-test-uid',
-        email: 'test@playwright.local',
-        displayName: 'Test User',
-      };
-
-      const state = {
-        maps: {
-          [params.mapId]: {
-            id: params.mapId,
-            name: 'Collapse Test Map',
-            nodes: {
-              [params.parentId]: {
-                id: params.parentId,
-                label: 'Parent',
-                x: 500,
-                y: 300,
-                parentId: null,
-                depth: 0,
-                w: 90,
-                h: 36,
-              },
-              [params.childId]: {
-                id: params.childId,
-                label: 'Child',
-                x: 690,
-                y: 300,
-                parentId: params.parentId,
-                depth: 1,
-                w: 90,
-                h: 36,
-              },
-            },
-            edges: [{ from: params.parentId, to: params.childId }],
-            links: [],
-            tx: 0,
-            ty: 0,
-            scale: 0.999,
+    const state = {
+      maps: {
+        [IDS.mapId]: {
+          id: IDS.mapId,
+          name: 'Collapse Test Map',
+          nodes: {
+            [IDS.parentId]: makeNode(IDS.parentId, 'Parent', 500, 300),
+            [IDS.childId]:  makeNode(IDS.childId,  'Child',  690, 300, IDS.parentId, 1),
           },
+          edges: [{ from: IDS.parentId, to: IDS.childId }],
+          links: [],
+          tx: 0,
+          ty: 0,
+          scale: 0.999,
         },
-        mapOrder: [params.mapId],
-      };
-      localStorage.setItem('mindmaps_v2', JSON.stringify(state));
-    }, IDS);
+      },
+      mapOrder: [IDS.mapId],
+    };
+    await page.addInitScript((params) => {
+      window.__PLAYWRIGHT_TEST_USER__ = params.user;
+      localStorage.setItem('mindmaps_v2', JSON.stringify(params.state));
+    }, { user: TEST_USER, state });
 
-    await page.goto('/');
-    await page.getByText('maps').waitFor();
+    await waitForPageReady(page);
     await use(page);
   },
 });
@@ -77,44 +53,29 @@ const collapseTest = sharedTest.extend<{ page: import('@playwright/test').Page }
 
 const leafTest = sharedTest.extend<{ page: import('@playwright/test').Page }>({
   page: async ({ page }, use) => {
-    await page.addInitScript((params) => {
-      window.__PLAYWRIGHT_TEST_USER__ = {
-        uid: 'playwright-test-uid',
-        email: 'test@playwright.local',
-        displayName: 'Test User',
-      };
-
-      const state = {
-        maps: {
-          [params.mapId]: {
-            id: params.mapId,
-            name: 'Leaf Test Map',
-            nodes: {
-              [params.leafId]: {
-                id: params.leafId,
-                label: 'Leaf',
-                x: 500,
-                y: 300,
-                parentId: null,
-                depth: 0,
-                w: 90,
-                h: 36,
-              },
-            },
-            edges: [],
-            links: [],
-            tx: 0,
-            ty: 0,
-            scale: 0.999,
+    const state = {
+      maps: {
+        [IDS.mapId]: {
+          id: IDS.mapId,
+          name: 'Leaf Test Map',
+          nodes: {
+            [IDS.leafId]: makeNode(IDS.leafId, 'Leaf', 500, 300),
           },
+          edges: [],
+          links: [],
+          tx: 0,
+          ty: 0,
+          scale: 0.999,
         },
-        mapOrder: [params.mapId],
-      };
-      localStorage.setItem('mindmaps_v2', JSON.stringify(state));
-    }, IDS);
+      },
+      mapOrder: [IDS.mapId],
+    };
+    await page.addInitScript((params) => {
+      window.__PLAYWRIGHT_TEST_USER__ = params.user;
+      localStorage.setItem('mindmaps_v2', JSON.stringify(params.state));
+    }, { user: TEST_USER, state });
 
-    await page.goto('/');
-    await page.getByText('maps').waitFor();
+    await waitForPageReady(page);
     await use(page);
   },
 });

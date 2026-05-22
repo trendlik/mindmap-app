@@ -23,14 +23,7 @@
  */
 
 import { test as base, expect } from '@playwright/test';
-
-// ─── shared test-user stub ───────────────────────────────────────────────────
-
-const TEST_USER = {
-  uid: 'playwright-test-uid',
-  email: 'test@playwright.local',
-  displayName: 'Test User',
-};
+import { TEST_USER, makeMap, waitForPageReady } from './fixtures';
 
 // ─── stable IDs ──────────────────────────────────────────────────────────────
 
@@ -45,49 +38,20 @@ const IDS = {
 
 const twoMapTest = base.extend<{ page: import('@playwright/test').Page }>({
   page: async ({ page }, use) => {
+    const state = {
+      maps: {
+        [IDS.mapA]: makeMap(IDS.mapA, 'Alpha Map', IDS.nodeA),
+        [IDS.mapB]: makeMap(IDS.mapB, 'Beta Map',  IDS.nodeB),
+      },
+      mapOrder: [IDS.mapA, IDS.mapB],
+    };
     await page.addInitScript((params) => {
       window.__PLAYWRIGHT_TEST_USER__ = params.user;
+      localStorage.setItem('mindmaps_v2', JSON.stringify(params.state));
+    }, { user: TEST_USER, state });
 
-      function makeMap(id: string, name: string, nodeId: string) {
-        return {
-          id,
-          name,
-          nodes: {
-            [nodeId]: {
-              id: nodeId,
-              label: name,
-              x: 500,
-              y: 300,
-              parentId: null,
-              depth: 0,
-              w: 90,
-              h: 36,
-            },
-          },
-          edges: [],
-          links: [],
-          tx: 0,
-          ty: 0,
-          scale: 1,
-        };
-      }
-
-      const state = {
-        maps: {
-          [params.mapA]: makeMap(params.mapA, 'Alpha Map', params.nodeA),
-          [params.mapB]: makeMap(params.mapB, 'Beta Map',  params.nodeB),
-        },
-        mapOrder: [params.mapA, params.mapB],
-      };
-      localStorage.setItem('mindmaps_v2', JSON.stringify(state));
-    }, { user: TEST_USER, ...IDS });
-
-    await page.goto('/');
-    // Wait for the sidebar header title "maps" to confirm the app has rendered.
-    // We also wait for both map names to be visible to confirm the two-map seed
-    // was picked up.  Using getByText('maps') on the header span is the same
-    // strategy as the shared fixtures.ts baseline.
-    await page.getByText('maps').first().waitFor();
+    await waitForPageReady(page);
+    // Also wait for a specific map name to confirm the two-map seed was picked up.
     await page.locator('aside nav').getByText('Alpha Map', { exact: true }).waitFor();
     await use(page);
   },
@@ -217,9 +181,9 @@ twoMapTest('clicking an archived item in the expanded section does not change th
   async ({ page }) => {
     // Select Beta Map first to establish a known active map
     await activeItem(page, 'Beta Map').click();
-    // Wait for Beta Map to become active (active item has a distinct background
-    // class; we verify the canvas root node label instead, which is cheaper)
-    await expect(page.locator('[data-node-id]')).toBeVisible();
+    // Wait until Beta Map's root node is on the canvas — not just any [data-node-id]
+    // (Alpha Map's node is already visible, so a plain toBeVisible() resolves too early).
+    await expect(page.locator('[data-node-id]').first()).toContainText('Beta Map');
 
     // Capture the current canvas title before any archive interaction
     const canvasBefore = await page.locator('[data-node-id]').first().textContent();

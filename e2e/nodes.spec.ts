@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, waitForEditInput } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const childBtn = (page: Page) =>
@@ -12,24 +12,19 @@ const redoBtn = (page: Page) =>
 const fitBtn = (page: Page) =>
   page.getByRole('button', { name: 'fit', exact: true });
 
-// The canvas edit input is the only <input> rendered with an inline style
-// (sidebar rename inputs use only a CSS class, no style attribute).
-// addChild() opens it via a 60ms internal setTimeout, so we must wait for
-// it before pressing Escape — otherwise Escape fires too early, the input
-// opens afterwards, and a subsequent button click triggers blur → a spurious
-// updateNode() call pushes an extra undo entry.
-const canvasEditInput = (page: Page) =>
-  page.locator('input[style]');
-
+// waitForEditInput waits for the canvas edit input (the only <input> with an
+// inline style) before pressing Escape — otherwise Escape fires too early, the
+// input opens afterwards, and a subsequent button click triggers blur → a
+// spurious updateNode() call pushes an extra undo entry.
 async function addChildAndClose(page: Page) {
   await childBtn(page).click();
-  await canvasEditInput(page).waitFor({ state: 'visible', timeout: 2000 });
+  await waitForEditInput(page);
   await page.keyboard.press('Escape');
 }
 
 async function addSiblingAndClose(page: Page) {
   await siblingBtn(page).click();
-  await canvasEditInput(page).waitFor({ state: 'visible', timeout: 2000 });
+  await waitForEditInput(page);
   await page.keyboard.press('Escape');
 }
 

@@ -14,17 +14,9 @@
  *  centring, the root node's rendered centre is close to the SVG's centre.
  */
 
-import { test, expect, TEST_IDS } from './fixtures';
+import { test, expect, TEST_IDS, parseTransform, waitForEditInput } from './fixtures';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-
-/** Parse tx and ty from a transform string like "translate(140,60) scale(1)". */
-function parseTranslate(transform: string | null): { tx: number; ty: number } {
-  if (!transform) return { tx: 0, ty: 0 };
-  const m = transform.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
-  if (!m) return { tx: 0, ty: 0 };
-  return { tx: parseFloat(m[1]), ty: parseFloat(m[2]) };
-}
 
 /** The top-level transform <g> inside the canvas SVG. */
 const transformG = (page: import('@playwright/test').Page) =>
@@ -33,10 +25,6 @@ const transformG = (page: import('@playwright/test').Page) =>
 /** The canvas SVG element (the large full-canvas SVG, not toolbar icon SVGs). */
 const svg = (page: import('@playwright/test').Page) =>
   page.locator('svg:has([data-node-id])');
-
-/** The canvas edit input (inline style distinguishes it from sidebar inputs). */
-const canvasEditInput = (page: import('@playwright/test').Page) =>
-  page.locator('input[style]');
 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
@@ -51,14 +39,14 @@ test('double-clicking empty canvas changes the SVG transform (view pans)', async
 
   // Capture transform after the pan
   const transformAfterPan = await transformG(page).getAttribute('transform');
-  const { tx: txPanned, ty: tyPanned } = parseTranslate(transformAfterPan);
+  const { tx: txPanned, ty: tyPanned } = parseTransform(transformAfterPan);
 
   // Double-click on an empty area of the canvas (top-left corner, away from nodes)
   await svgEl.dblclick({ position: { x: 50, y: 50 } });
 
   // Capture transform after centring
   const transformAfterCentre = await transformG(page).getAttribute('transform');
-  const { tx: txCentred, ty: tyCentred } = parseTranslate(transformAfterCentre);
+  const { tx: txCentred, ty: tyCentred } = parseTransform(transformAfterCentre);
 
   // The transform must have changed relative to the panned position
   expect(txCentred).not.toBeCloseTo(txPanned, 0);
@@ -104,7 +92,7 @@ test('double-clicking a node does NOT centre the view — rename input appears i
   await page.locator(`[data-node-id="${TEST_IDS.rootNodeId}"]`).dblclick();
 
   // The canvas edit input must appear (rename mode)
-  await expect(canvasEditInput(page)).toBeVisible({ timeout: 2000 });
+  const editInput = await waitForEditInput(page);
 
   // The view transform must NOT have changed (centring should not have fired)
   const transformAfter = await transformG(page).getAttribute('transform');
@@ -113,8 +101,8 @@ test('double-clicking a node does NOT centre the view — rename input appears i
   // Clean up — dismiss the edit input.
   // Use locator.press() to dispatch directly to the input element; page.keyboard.press()
   // requires focus which can be unreliable in headless parallel runs.
-  await canvasEditInput(page).press('Escape');
-  await expect(canvasEditInput(page)).not.toBeVisible();
+  await editInput.press('Escape');
+  await expect(editInput).not.toBeVisible();
 });
 
 test('panning away then double-clicking background re-centres on root', async ({ page }) => {
@@ -212,9 +200,7 @@ test('double-click centring preserves the current zoom level', async ({ page }) 
   await page.getByTitle('Zoom in').click();
 
   // Record the scale from the transform after zooming
-  const transformAfterZoom = await transformG(page).getAttribute('transform');
-  const scaleMatch = transformAfterZoom?.match(/scale\(\s*([\d.]+)\s*\)/);
-  const scaleAfterZoom = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+  const { scale: scaleAfterZoom } = parseTransform(await transformG(page).getAttribute('transform'));
 
   // Pan away
   await svgEl.hover({ position: { x: 50, y: 50 } });
@@ -226,9 +212,7 @@ test('double-click centring preserves the current zoom level', async ({ page }) 
   await svgEl.dblclick({ position: { x: 50, y: 50 } });
 
   // Scale must be unchanged
-  const transformAfterCentre = await transformG(page).getAttribute('transform');
-  const scaleCentreMatch = transformAfterCentre?.match(/scale\(\s*([\d.]+)\s*\)/);
-  const scaleAfterCentre = scaleCentreMatch ? parseFloat(scaleCentreMatch[1]) : 1;
+  const { scale: scaleAfterCentre } = parseTransform(await transformG(page).getAttribute('transform'));
 
   expect(scaleAfterCentre).toBeCloseTo(scaleAfterZoom, 3);
 });
