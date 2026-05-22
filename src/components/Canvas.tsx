@@ -528,6 +528,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (e.key === 'l' || e.key === 'L') {
           startLinkingRef.current();
         }
+        if (e.key === ' ' && selectedIdRef.current) {
+          e.preventDefault();
+          toggleCollapseRef.current();
+          trackEvent('collapseNode');
+        }
         const ARROW_DIRS: Record<string, Direction> = {
           ArrowRight: { dx: 1, dy: 0 },
           ArrowLeft:  { dx: -1, dy: 0 },

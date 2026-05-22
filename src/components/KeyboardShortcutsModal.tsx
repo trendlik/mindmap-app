@@ -13,6 +13,7 @@ const SHORTCUTS = [
       { keys: ['Shift', 'Enter'], description: 'Add sibling node' },
       { keys: ['Delete'], description: 'Delete selected node' },
       { keys: ['L'], description: 'Create custom link' },
+      { keys: ['Space'], description: 'Collapse / uncollapse node (requires children)' },
     ],
   },
   {
