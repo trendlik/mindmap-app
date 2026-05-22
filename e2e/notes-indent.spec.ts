@@ -138,3 +138,55 @@ test('toolbar outdent button outdents a nested list item', async ({ page }) => {
   // Nesting should be gone
   await expect(ed.locator('ul ul')).toHaveCount(0);
 });
+
+// ─── 4. URL link field ────────────────────────────────────────────────────────
+
+test('URL link field stores a link on the selected node', async ({ page }) => {
+  await selectRootNode(page);
+  await openNotes(page);
+
+  const linkInput = page.getByPlaceholder('Add URL...');
+  await linkInput.fill('https://example.com');
+  // Blur to trigger onChangeLink persist
+  await linkInput.press('Tab');
+
+  // Re-open the notes panel and verify the link is still there
+  // (close then re-select + re-open)
+  await page.getByRole('button', { name: 'notes', exact: true }).click();
+  await selectRootNode(page);
+  await openNotes(page);
+
+  await expect(page.getByPlaceholder('Add URL...')).toHaveValue('https://example.com');
+});
+
+// ─── 5. Emoji icon picker ─────────────────────────────────────────────────────
+
+test('emoji icon picker sets an emoji on the selected node', async ({ page }) => {
+  await selectRootNode(page);
+  await openNotes(page);
+
+  // Open the icon picker
+  await page.getByTitle('Add icon').click();
+
+  // Pick the first emoji (💡)
+  const firstEmoji = page.locator('[class*="emojiBtn"]').first();
+  const emojiChar = await firstEmoji.textContent();
+  await firstEmoji.click();
+
+  // The icon trigger should now display the chosen emoji
+  await expect(page.locator('[class*="iconEmoji"]')).toHaveText(emojiChar ?? '💡');
+});
+
+test('removing an emoji icon clears it from the selected node', async ({ page }) => {
+  await selectRootNode(page);
+  await openNotes(page);
+
+  // Set an icon first
+  await page.getByTitle('Add icon').click();
+  await page.locator('[class*="emojiBtn"]').first().click();
+  await expect(page.locator('[class*="iconEmoji"]')).toBeVisible();
+
+  // Remove the icon
+  await page.getByTitle('Remove icon').click();
+  await expect(page.locator('[class*="iconEmoji"]')).toHaveCount(0);
+});

@@ -90,3 +90,64 @@ test('keyboard shortcut Cmd+Z triggers undo', async ({ page }) => {
   await page.keyboard.press('Meta+z');
   await expect(page.locator('[data-node-id]')).toHaveCount(1);
 });
+
+// ─── node rename ──────────────────────────────────────────────────────────────
+
+const deleteBtn = (page: Page) =>
+  page.getByRole('button', { name: 'delete', exact: true });
+
+test('renames a node via double-click', async ({ page }) => {
+  await page.locator('[data-node-id]').first().dblclick();
+  const input = await waitForEditInput(page);
+  await input.fill('Renamed Node');
+  await input.press('Enter');
+  await expect(page.locator('[data-node-id]').first()).toContainText('Renamed Node');
+});
+
+test('pressing Escape during rename cancels the edit', async ({ page }) => {
+  await page.locator('[data-node-id]').first().dblclick();
+  const input = await waitForEditInput(page);
+  await input.fill('Should Not Save');
+  await input.press('Escape');
+  await expect(page.locator('input[style]')).toHaveCount(0);
+  await expect(page.locator('[data-node-id]').first()).toContainText('my first map');
+});
+
+// ─── node delete ──────────────────────────────────────────────────────────────
+
+test('deletes a selected node via the toolbar delete button', async ({ page }) => {
+  await addChildAndClose(page);
+  await expect(page.locator('[data-node-id]')).toHaveCount(2);
+  await deleteBtn(page).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(page.locator('[data-node-id]')).toHaveCount(1);
+});
+
+test('Delete key deletes the selected node', async ({ page }) => {
+  await addChildAndClose(page);
+  await expect(page.locator('[data-node-id]')).toHaveCount(2);
+  await page.keyboard.press('Delete');
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(page.locator('[data-node-id]')).toHaveCount(1);
+});
+
+// ─── undo edge cases ──────────────────────────────────────────────────────────
+
+test('undo after delete restores the deleted node', async ({ page }) => {
+  await addChildAndClose(page);
+  await deleteBtn(page).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(page.locator('[data-node-id]')).toHaveCount(1);
+  await undoBtn(page).click();
+  await expect(page.locator('[data-node-id]')).toHaveCount(2);
+});
+
+test('undo after rename restores the original label', async ({ page }) => {
+  await page.locator('[data-node-id]').first().dblclick();
+  const input = await waitForEditInput(page);
+  await input.fill('Renamed Node');
+  await input.press('Enter');
+  await expect(page.locator('[data-node-id]').first()).toContainText('Renamed Node');
+  await undoBtn(page).click();
+  await expect(page.locator('[data-node-id]').first()).toContainText('my first map');
+});
