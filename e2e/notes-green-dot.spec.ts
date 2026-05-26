@@ -57,7 +57,7 @@ test('green dot appears when notes are added and disappears when notes are clear
 
   // Clear all content from the editor (select-all + delete)
   await ed.click();
-  await page.keyboard.press('Meta+A');
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.press('Backspace');
 
   // Blur the editor again by clicking the panel header
@@ -89,7 +89,7 @@ test('handleInput live-clear: dot disappears when all text is deleted without bl
   // Re-focus editor, select all text and delete — do NOT blur afterwards
   // handleInput fires on the deletion event and must clear the dot immediately
   await ed.click();
-  await page.keyboard.press('Meta+A');
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.press('Delete');
 
   // Green dot must disappear via handleInput alone, without any blur
