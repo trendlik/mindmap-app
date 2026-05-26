@@ -161,7 +161,10 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
     isInternalUpdate.current = true;
-    onChange(editorRef.current.innerHTML);
+    const value = editorRef.current.textContent?.trim()
+      ? editorRef.current.innerHTML
+      : '';
+    onChange(value);
   }, [onChange]);
 
   function handleLinkBlur() {
@@ -328,11 +331,17 @@ export default function NotesPanel({ nodeLabel, notes, link, icon, onChange, onC
         onKeyDown={handleKeyDown}
         onBlur={() => {
           if (editorRef.current) {
-            const linked = linkifyHtml(editorRef.current.innerHTML);
-            if (linked !== editorRef.current.innerHTML) {
+            if (!editorRef.current.textContent?.trim()) {
               isInternalUpdate.current = true;
-              editorRef.current.innerHTML = linked;
-              onChange(linked);
+              editorRef.current.innerHTML = '';
+              onChange('');
+            } else {
+              const linked = linkifyHtml(editorRef.current.innerHTML);
+              if (linked !== editorRef.current.innerHTML) {
+                isInternalUpdate.current = true;
+                editorRef.current.innerHTML = linked;
+                onChange(linked);
+              }
             }
           }
           if (editorRef.current?.innerHTML) logger.logAction('node_notes_edited');
