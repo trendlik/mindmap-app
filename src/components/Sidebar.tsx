@@ -451,8 +451,8 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                       setDescriptionPopoverId(null);
                       setDescriptionEditingId(null);
                     } else {
-                      setDescriptionPopoverId(id);
                       setDescriptionEditingId(null);
+                      setDescriptionPopoverId(id);
                     }
                   }}
                   title="Map description"
@@ -606,6 +606,8 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                       setDescriptionPopoverId(null);
                     }
                   }}
+                  tabIndex={-1}
+                  autoFocus={descriptionEditingId !== id}
                 >
                   {descriptionEditingId === id ? (
                     <textarea
@@ -632,7 +634,16 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                         setDescriptionEditingId(id);
                         setDescriptionValue(m.description ?? '');
                       }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setDescriptionEditingId(id);
+                          setDescriptionValue(m.description ?? '');
+                        }
+                      }}
                       title="Click to edit description"
+                      tabIndex={0}
+                      role="button"
                     >
                       {m.description || 'Add a description…'}
                     </div>
