@@ -60,6 +60,13 @@ Apply these rules whenever implementing a feature, fix, or refactor.
 
 React 18 + TypeScript + Vite app for freeform mind mapping. Firebase Auth (Google sign-in) + Firestore for per-user cloud persistence. localStorage used as a fast cache.
 
+### URL scheme
+The app uses hash-based routing. Two formats are supported:
+- `#mapId` — opens the specified map.
+- `#mapId/nodeId` — opens the specified map and focuses (selects + scrolls to) the specified node.
+
+The hash is written as `#mapId` only when the active map changes; node focus is never auto-reflected in the address bar. A "copy link" button in the Toolbar writes the full `#mapId/nodeId` URL to the clipboard explicitly.
+
 ### Auth flow
 `AuthProvider` (context in `src/contexts/AuthContext.tsx`) wraps the app. `AuthGate` component shows a sign-in screen when unauthenticated, or renders children when signed in. The `user.uid` is passed to the store hook to scope Firestore reads/writes.
 
@@ -93,7 +100,7 @@ React 18 + TypeScript + Vite app for freeform mind mapping. Firebase Auth (Googl
 
 - **Canvas** (`src/components/Canvas.tsx`): SVG-based canvas handling pan (drag background), zoom (scroll wheel), node drag, inline editing (HTML input overlaid on SVG), and selection. View transform is `translate(tx,ty) scale(s)` on a top-level `<g>`. Edges are cubic Bézier paths. Also handles node collapse/expand, reparent mode, and custom cross-link creation.
 - **Sidebar** (`src/components/Sidebar.tsx`): Map list with create/rename (double-click)/delete/archive. Each map item has an (i) button that opens a description popover for viewing and editing free-text map descriptions. Includes a search bar that filters by map name, node labels, node notes, and map labels/tags. Archived maps are shown in a collapsible section. Shows user avatar and sign-out button in footer.
-- **Toolbar** (`src/components/Toolbar.tsx`): Action buttons for add child/sibling, delete, auto-layout, fit view, export, collapse/expand, reparent, add custom link.
+- **Toolbar** (`src/components/Toolbar.tsx`): Action buttons for add child/sibling, delete, auto-layout, fit view, export, collapse/expand, reparent, add custom link. When a node is selected, a "copy link" button copies a deep-link URL (`#mapId/nodeId`) to the clipboard.
 - **NotesPanel** (`src/components/NotesPanel.tsx`): Slide-in panel for editing a selected node's notes (markdown-like text), URL link, and emoji icon.
 - **StatsPanel** (`src/components/StatsPanel.tsx`): Displays per-feature usage counts and total active time from `UsageStatsContext`.
 - **ConfirmDialog** (`src/components/ConfirmDialog.tsx`): Reusable modal confirmation dialog.

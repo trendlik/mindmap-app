@@ -255,11 +255,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     }
   }, [map?.id]);
 
-  // Pan canvas to the focused node when focusNodeId changes
+  // Pan canvas to the focused node when focusNodeId changes; also select it
   useEffect(() => {
     if (!focusNodeId || !map) return;
     const node = map.nodes[focusNodeId];
     if (!node) return;
+    setSelectedId(focusNodeId);
     // Small delay to allow map switch to settle
     const t = setTimeout(() => ensureNodeVisible(node), 60);
     return () => clearTimeout(t);
@@ -1360,6 +1361,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           onUpdateMapNumbering(map.id, { enabled: map.numbering?.enabled ?? true, style });
           trackEvent('toggleNumbering');
         }}
+        onCopyNodeLink={selectedId ? () =>
+          navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${map.id}/${selectedId}`)
+            .then(() => trackEvent('copyNodeLink'))
+        : undefined}
       />
 
       {notesOpen && notesNodeId && map.nodes[notesNodeId] && (
