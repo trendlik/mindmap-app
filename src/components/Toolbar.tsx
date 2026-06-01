@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CustomLink, MapNumbering } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
 import styles from './Toolbar.module.css';
@@ -44,10 +45,12 @@ interface ToolbarProps {
   numberingStyle: MapNumbering['style'];
   onToggleNumbering: () => void;
   onSetNumberingStyle: (style: MapNumbering['style']) => void;
+  onCopyNodeLink?: () => void;
 }
 
 export default function Toolbar(props: ToolbarProps) {
   const { trackEvent } = useUsageStats();
+  const [copied, setCopied] = useState(false);
   const {
     onAddChild, onAddSibling, onDelete, onToggleNotes, onStartLink, onStartReparent,
     onToggleLinkStroke, onSetLinkStroke,
@@ -58,6 +61,7 @@ export default function Toolbar(props: ToolbarProps) {
     hasSelected, notesOpen, isLinking, isReparenting, canReparent,
     selectedLink, linkArrowFrom, linkArrowTo, linkStroke,
     numberingEnabled, numberingStyle, onToggleNumbering, onSetNumberingStyle,
+    onCopyNodeLink,
   } = props;
 
   const showArrowFrom = selectedLink ? (selectedLink.arrowFrom ?? false) : linkArrowFrom;
@@ -108,6 +112,30 @@ export default function Toolbar(props: ToolbarProps) {
         )}
         {isCollapsed ? 'expand' : 'collapse'}
       </button>
+      {hasSelected && (
+        <button
+          className={styles.btn}
+          onClick={() => {
+            onCopyNodeLink?.();
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          title="Copy link to this node"
+          data-testid="copy-node-link"
+        >
+          {copied ? (
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <path d="M2 5.5l2.5 2.5L9 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          ) : (
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+              <rect x="4" y="1.5" width="5.5" height="6.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              <path d="M3 3H2a.7.7 0 00-.7.7v5.6c0 .4.3.7.7.7h5.6a.7.7 0 00.7-.7V8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          )}
+          {copied ? 'copied!' : 'copy link'}
+        </button>
+      )}
 
       <button
         className={`${styles.btn} ${numberingEnabled ? styles.active : ''}`}

@@ -46,17 +46,25 @@ function AppInner() {
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
 
-  // Sync URL hash ↔ active map
+  const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
+    if (mapId !== activeMapId) switchMap(mapId);
+    setFocusedNode({ mapId, nodeId });
+  }, [activeMapId, switchMap]);
+
+  // Sync URL hash ↔ active map (supports #mapId and #mapId/nodeId)
   useEffect(() => {
-    const hashId = location.hash.slice(1);
-    if (hashId && maps[hashId] && hashId !== activeMapId) {
-      switchMap(hashId);
+    const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
+    if (hashMapId && maps[hashMapId] && hashMapId !== activeMapId) {
+      switchMap(hashMapId);
+    }
+    if (hashMapId && hashNodeId && maps[hashMapId]) {
+      handleNodeFocus(hashMapId, hashNodeId);
     }
   }, [maps]);
 
   useEffect(() => {
     if (activeMapId) {
-      const current = location.hash.slice(1);
+      const current = location.hash.slice(1).split('/')[0];
       if (current !== activeMapId) {
         history.pushState(null, '', '#' + activeMapId);
       }
@@ -65,14 +73,17 @@ function AppInner() {
 
   useEffect(() => {
     function onHashChange() {
-      const hashId = location.hash.slice(1);
-      if (hashId && maps[hashId]) {
-        switchMap(hashId);
+      const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
+      if (hashMapId && maps[hashMapId]) {
+        switchMap(hashMapId);
+        if (hashNodeId) {
+          handleNodeFocus(hashMapId, hashNodeId);
+        }
       }
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [maps, switchMap]);
+  }, [maps, switchMap, handleNodeFocus]);
 
   const handleSelectMap = useCallback((mapId: string) => {
     switchMap(mapId);
@@ -80,11 +91,6 @@ function AppInner() {
     setFocusedNode(null);
     if (window.innerWidth <= 640) setSidebarOpen(false);
   }, [switchMap, trackEvent]);
-
-  const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
-    if (mapId !== activeMapId) switchMap(mapId);
-    setFocusedNode({ mapId, nodeId });
-  }, [activeMapId, switchMap]);
 
   const handleCreateMap = useCallback((name?: string) => {
     createMap(name);

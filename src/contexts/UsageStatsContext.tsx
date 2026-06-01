@@ -10,7 +10,7 @@ export type FeatureKey =
   | 'pan' | 'zoom' | 'undo' | 'redo' | 'addLink' | 'reparent'
   | 'toggleNotes' | 'collapseNode' | 'searchInMap' | 'aiChat' | 'llmSettings'
   | 'notesIndent' | 'notesOutdent' | 'aiChatCopy' | 'toggleNumbering' | 'notesPanelResize'
-  | 'map_description_edit';
+  | 'map_description_edit' | 'copyNodeLink';
 
 export interface FeatureStat {
   count: number;

@@ -37,6 +37,7 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   toggleNumbering: 'Toggle numbering',
   notesPanelResize: 'Notes panel resize',
   map_description_edit: 'Map description edit',
+  copyNodeLink: 'Copy node link',
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_LABELS) as FeatureKey[];
