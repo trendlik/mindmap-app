@@ -66,7 +66,7 @@ React 18 + TypeScript + Vite app for freeform mind mapping. Firebase Auth (Googl
 ### Data model
 `MindMapNode` fields: `id`, `label`, `x`, `y`, `parentId`, `depth`, `w`, `h`, and optional `notes`, `link`, `icon` (emoji), `collapsed`.
 
-`MindMap` fields: `id`, `name`, `nodes`, `edges`, optional `labels` (string tags), `archived`, `links` (custom cross-links), `tx`/`ty`/`scale` (saved view), `updatedAt`.
+`MindMap` fields: `id`, `name`, `nodes`, `edges`, optional `description` (free-text), `labels` (string tags), `archived`, `links` (custom cross-links), `tx`/`ty`/`scale` (saved view), `updatedAt`.
 
 `CustomLink`: arbitrary cross-node connections with `style` (`arrow`|`line`), `stroke` (`solid`|`dashed`), optional `label`, and directional arrow flags.
 
@@ -92,7 +92,7 @@ React 18 + TypeScript + Vite app for freeform mind mapping. Firebase Auth (Googl
 `AuthProvider` → `UsageStatsProvider` → `App` → `AuthGate` → `Sidebar` + `Canvas` (with embedded `Toolbar` and `NotesPanel`)
 
 - **Canvas** (`src/components/Canvas.tsx`): SVG-based canvas handling pan (drag background), zoom (scroll wheel), node drag, inline editing (HTML input overlaid on SVG), and selection. View transform is `translate(tx,ty) scale(s)` on a top-level `<g>`. Edges are cubic Bézier paths. Also handles node collapse/expand, reparent mode, and custom cross-link creation.
-- **Sidebar** (`src/components/Sidebar.tsx`): Map list with create/rename (double-click)/delete/archive. Includes a search bar that filters by map name, node labels, node notes, and map labels/tags. Archived maps are shown in a collapsible section. Shows user avatar and sign-out button in footer.
+- **Sidebar** (`src/components/Sidebar.tsx`): Map list with create/rename (double-click)/delete/archive. Each map item has an (i) button that opens a description popover for viewing and editing free-text map descriptions. Includes a search bar that filters by map name, node labels, node notes, and map labels/tags. Archived maps are shown in a collapsible section. Shows user avatar and sign-out button in footer.
 - **Toolbar** (`src/components/Toolbar.tsx`): Action buttons for add child/sibling, delete, auto-layout, fit view, export, collapse/expand, reparent, add custom link.
 - **NotesPanel** (`src/components/NotesPanel.tsx`): Slide-in panel for editing a selected node's notes (markdown-like text), URL link, and emoji icon.
 - **StatsPanel** (`src/components/StatsPanel.tsx`): Displays per-feature usage counts and total active time from `UsageStatsContext`.

@@ -24,6 +24,7 @@ function AppInner() {
     deleteMap,
     renameMap,
     updateMapLabels,
+    updateMapDescription,
     reorderMaps,
     switchMap,
     saveView,
@@ -130,6 +131,7 @@ function AppInner() {
             onDelete={handleDeleteMap}
             onRename={handleRenameMap}
             onUpdateLabels={(mapId, labels) => updateMapLabels(mapId, labels)}
+            onUpdateDescription={updateMapDescription}
             onReorder={reorderMaps}
             onSetArchived={handleSetArchived}
             onWidthChange={setSidebarWidth}
