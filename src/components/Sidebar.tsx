@@ -27,6 +27,7 @@ interface SidebarProps {
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
   onRename: (mapId: string, name: string) => void;
   onUpdateLabels: (mapId: string, labels: string[]) => void;
+  onUpdateDescription: (mapId: string, description: string) => void;
   onReorder: (newOrder: string[]) => void;
   onSetArchived: (mapId: string, archived: boolean) => void;
   onWidthChange?: (width: number) => void;
@@ -131,7 +132,7 @@ function computeNodeHits(
   return result;
 }
 
-export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onReorder, onSetArchived, onWidthChange, onNodeFocus, onHighlightQueryChange, user, onSignOut }: SidebarProps) {
+export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreate, onDelete, onRename, onUpdateLabels, onUpdateDescription, onReorder, onSetArchived, onWidthChange, onNodeFocus, onHighlightQueryChange, user, onSignOut }: SidebarProps) {
   const { trackEvent } = useUsageStats();
   const [sortKey, setSortKey] = useState<SortKey>(() => {
     const stored = localStorage.getItem('mindmap_sort_pref');
@@ -146,6 +147,9 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   const [labelEditingId, setLabelEditingId] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState('');
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const [descriptionPopoverId, setDescriptionPopoverId] = useState<string | null>(null);
+  const [descriptionEditingId, setDescriptionEditingId] = useState<string | null>(null);
+  const [descriptionValue, setDescriptionValue] = useState('');
   const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
   const [statsOpen, setStatsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -177,6 +181,17 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     document.addEventListener('click', handleDocClick);
     return () => document.removeEventListener('click', handleDocClick);
   }, [labelEditingId]);
+
+  // Close description popover when clicking outside
+  useEffect(() => {
+    if (!descriptionPopoverId) return;
+    function handleDocClick() {
+      setDescriptionPopoverId(null);
+      setDescriptionEditingId(null);
+    }
+    document.addEventListener('click', handleDocClick);
+    return () => document.removeEventListener('click', handleDocClick);
+  }, [descriptionPopoverId]);
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragging.current) return;
@@ -350,7 +365,13 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                 draggable={sortKey === 'manual' && editingId !== id}
                 onClick={() => {
                   if (clickTimer.current) clearTimeout(clickTimer.current);
-                  clickTimer.current = setTimeout(() => onSelect(id), 220);
+                  clickTimer.current = setTimeout(() => {
+                    onSelect(id);
+                    if (descriptionPopoverId !== id) {
+                      setDescriptionPopoverId(null);
+                      setDescriptionEditingId(null);
+                    }
+                  }, 220);
                 }}
                 onDoubleClick={() => {
                   if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
@@ -420,6 +441,26 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                     <path d="M1 1h4.5l5.5 5.5-4.5 4.5L1 5.5V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
                     <circle cx="3.5" cy="3.5" r="0.8" fill="currentColor"/>
+                  </svg>
+                </button>
+                <button
+                  className={`${styles.infoBtn} ${m.description ? styles.infoBtnActive : ''}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (descriptionPopoverId === id) {
+                      setDescriptionPopoverId(null);
+                      setDescriptionEditingId(null);
+                    } else {
+                      setDescriptionPopoverId(id);
+                      setDescriptionEditingId(null);
+                    }
+                  }}
+                  title="Map description"
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3"/>
+                    <path d="M6 5.5v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    <circle cx="6" cy="3.5" r="0.6" fill="currentColor"/>
                   </svg>
                 </button>
                 <button
@@ -556,6 +597,48 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                   </div>
                 );
               })()}
+              {descriptionPopoverId === id && (
+                <div
+                  className={styles.descriptionPopover}
+                  onClick={e => e.stopPropagation()}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape' && descriptionEditingId !== id) {
+                      setDescriptionPopoverId(null);
+                    }
+                  }}
+                >
+                  {descriptionEditingId === id ? (
+                    <textarea
+                      className={styles.descriptionTextarea}
+                      value={descriptionValue}
+                      autoFocus
+                      placeholder="Add a description…"
+                      onChange={e => setDescriptionValue(e.target.value)}
+                      onBlur={() => {
+                        onUpdateDescription(id, descriptionValue.trim());
+                        trackEvent('map_description_edit');
+                        setDescriptionEditingId(null);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Escape') {
+                          setDescriptionEditingId(null);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className={`${styles.descriptionText} ${!m.description ? styles.descriptionPlaceholder : ''}`}
+                      onClick={() => {
+                        setDescriptionEditingId(id);
+                        setDescriptionValue(m.description ?? '');
+                      }}
+                      title="Click to edit description"
+                    >
+                      {m.description || 'Add a description…'}
+                    </div>
+                  )}
+                </div>
+              )}
               {nodeHits[id] && nodeHits[id].map(hit => {
                 const itemIndex = resultItems.findIndex(r => r.type === 'node' && r.mapId === id && r.nodeId === hit.nodeId);
                 const isFocused = focusedResultIndex === itemIndex;

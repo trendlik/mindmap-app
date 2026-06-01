@@ -66,7 +66,7 @@ React 18 + TypeScript + Vite app for freeform mind mapping. Firebase Auth (Googl
 ### Data model
 `MindMapNode` fields: `id`, `label`, `x`, `y`, `parentId`, `depth`, `w`, `h`, and optional `notes`, `link`, `icon` (emoji), `collapsed`.
 
-`MindMap` fields: `id`, `name`, `nodes`, `edges`, optional `labels` (string tags), `archived`, `links` (custom cross-links), `tx`/`ty`/`scale` (saved view), `updatedAt`.
+`MindMap` fields: `id`, `name`, `nodes`, `edges`, optional `description` (free-text), `labels` (string tags), `archived`, `links` (custom cross-links), `tx`/`ty`/`scale` (saved view), `updatedAt`.
 
 `CustomLink`: arbitrary cross-node connections with `style` (`arrow`|`line`), `stroke` (`solid`|`dashed`), optional `label`, and directional arrow flags.
 

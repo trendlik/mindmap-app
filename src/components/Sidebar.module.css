@@ -573,6 +573,88 @@
   background: var(--accent);
 }
 
+/* Info (description) button — mirrors labelBtn */
+.infoBtn {
+  opacity: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.1s, color 0.1s, background 0.1s;
+}
+
+.item:hover .infoBtn {
+  opacity: 1;
+}
+
+.infoBtn:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.infoBtnActive {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Description popover (inline below the map row) */
+.descriptionPopover {
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  margin: 2px 4px 4px;
+}
+
+.descriptionText {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: pointer;
+  min-height: 20px;
+}
+
+.descriptionText:hover {
+  color: var(--text-primary);
+}
+
+.descriptionPlaceholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.descriptionTextarea {
+  font-size: 12px;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-medium);
+  outline: none;
+  padding: 2px 0;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  min-height: 60px;
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+.descriptionTextarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.descriptionTextarea:focus {
+  border-bottom-color: var(--accent);
+}
+
 /* Node hit rows (search results) */
 .nodeHit {
   display: flex;

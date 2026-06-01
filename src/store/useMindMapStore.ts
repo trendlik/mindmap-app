@@ -43,6 +43,7 @@ export interface MapNumbering {
 export interface MindMap {
   id: string;
   name: string;
+  description?: string;
   labels?: string[];
   archived?: boolean;
   nodes: Record<string, MindMapNode>;
@@ -415,6 +416,11 @@ export function useMindMapStore(userId: string | null) {
     logger.logAction('map_labels_updated', { mapId });
   }, [updateMap]);
 
+  const updateMapDescription = useCallback((mapId: string, description: string) => {
+    updateMap(mapId, m => ({ ...m, description: description || undefined }));
+    logger.logAction('map_description_updated', { mapId });
+  }, [updateMap]);
+
   const switchMap = useCallback((mapId: string) => {
     setActiveMapId(mapId);
     logger.logAction('map_switched', { mapId });
@@ -577,6 +583,7 @@ export function useMindMapStore(userId: string | null) {
     deleteMap,
     renameMap,
     updateMapLabels,
+    updateMapDescription,
     reorderMaps,
     switchMap,
     saveView,
