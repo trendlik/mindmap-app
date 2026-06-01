@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { CustomLink, MapNumbering } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
 import styles from './Toolbar.module.css';
@@ -45,7 +45,7 @@ interface ToolbarProps {
   numberingStyle: MapNumbering['style'];
   onToggleNumbering: () => void;
   onSetNumberingStyle: (style: MapNumbering['style']) => void;
-  onCopyNodeLink?: () => void;
+  onCopyNodeLink?: () => Promise<void>;
 }
 
 export default function Toolbar(props: ToolbarProps) {
@@ -63,6 +63,10 @@ export default function Toolbar(props: ToolbarProps) {
     numberingEnabled, numberingStyle, onToggleNumbering, onSetNumberingStyle,
     onCopyNodeLink,
   } = props;
+
+  useEffect(() => {
+    if (!hasSelected) setCopied(false);
+  }, [hasSelected]);
 
   const showArrowFrom = selectedLink ? (selectedLink.arrowFrom ?? false) : linkArrowFrom;
   const showArrowTo = selectedLink ? (selectedLink.arrowTo ?? (selectedLink.style === 'arrow')) : linkArrowTo;
@@ -115,8 +119,8 @@ export default function Toolbar(props: ToolbarProps) {
       {hasSelected && (
         <button
           className={styles.btn}
-          onClick={() => {
-            onCopyNodeLink?.();
+          onClick={async () => {
+            await onCopyNodeLink?.();
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}

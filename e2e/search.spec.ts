@@ -245,7 +245,7 @@ test('clicking a node hit row on the active map — matching node gets highlight
   // The highlight rect is rendered as a <rect> with stroke="#F39C12" or "#1D9E75"
   // immediately before the regular node rect inside the same <g>.
   // We check for the presence of any highlighted rect in the SVG.
-  await expect(page.locator('svg rect[stroke="#F39C12"], svg rect[stroke="#1D9E75"]')).toBeVisible();
+  await expect(page.locator('svg rect[stroke="#F39C12"], svg rect[stroke="#1D9E75"]').first()).toBeVisible();
 });
 
 test('clicking a node hit row on a different map — switches active map', async ({ page }) => {
@@ -304,7 +304,7 @@ test('ArrowDown navigates through map + node hit rows and Enter activates node h
   // Press Enter — should focus the node (canvas highlight ring should appear).
   await searchInput(page).press('Enter');
 
-  await expect(page.locator('svg rect[stroke="#F39C12"], svg rect[stroke="#1D9E75"]')).toBeVisible();
+  await expect(page.locator('svg rect[stroke="#F39C12"], svg rect[stroke="#1D9E75"]').first()).toBeVisible();
 });
 
 // ─── 8. label: prefix still works (regression) ───────────────────────────────

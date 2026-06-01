@@ -1361,11 +1361,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           onUpdateMapNumbering(map.id, { enabled: map.numbering?.enabled ?? true, style });
           trackEvent('toggleNumbering');
         }}
-        onCopyNodeLink={selectedId ? () => {
-          const url = `${window.location.origin}${window.location.pathname}#${map.id}/${selectedId}`;
-          navigator.clipboard.writeText(url);
-          trackEvent('copyNodeLink');
-        } : undefined}
+        onCopyNodeLink={selectedId ? () =>
+          navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${map.id}/${selectedId}`)
+            .then(() => trackEvent('copyNodeLink'))
+        : undefined}
       />
 
       {notesOpen && notesNodeId && map.nodes[notesNodeId] && (

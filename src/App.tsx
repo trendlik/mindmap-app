@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useMindMapStore } from './store/useMindMapStore';
 import type { MindMap } from './store/useMindMapStore';
@@ -46,6 +46,8 @@ function AppInner() {
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
 
+  const initialNodeFocusDone = useRef(false);
+
   const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
     if (mapId !== activeMapId) switchMap(mapId);
     setFocusedNode({ mapId, nodeId });
@@ -57,7 +59,8 @@ function AppInner() {
     if (hashMapId && maps[hashMapId] && hashMapId !== activeMapId) {
       switchMap(hashMapId);
     }
-    if (hashMapId && hashNodeId && maps[hashMapId]) {
+    if (!initialNodeFocusDone.current && hashNodeId && hashMapId && maps[hashMapId]?.nodes[hashNodeId]) {
+      initialNodeFocusDone.current = true;
       handleNodeFocus(hashMapId, hashNodeId);
     }
   }, [maps]);
