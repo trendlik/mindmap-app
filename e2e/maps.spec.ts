@@ -7,8 +7,13 @@ test('shows default map in sidebar on first load', async ({ page }) => {
 });
 
 test('creates a new map via the + button', async ({ page }) => {
-  page.on('dialog', (dialog) => dialog.accept('My Test Map'));
   await page.getByTitle('New map').click();
+  // The new map is created immediately and the sidebar shows an inline rename input
+  const renameInput = page.locator('aside nav input');
+  await expect(renameInput).toBeVisible();
+  await renameInput.clear();
+  await renameInput.type('My Test Map');
+  await renameInput.press('Enter');
   await expect(page.locator('aside').getByText('My Test Map')).toBeVisible();
   await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
 });
@@ -37,10 +42,10 @@ test('pressing Escape during rename cancels the edit', async ({ page }) => {
 });
 
 test('deletes a map when there are multiple maps', async ({ page }) => {
-  page.on('dialog', async (dialog) => {
-    if (dialog.type() === 'prompt') await dialog.accept('Map B');
-  });
   await page.getByTitle('New map').click();
+  const renameInput = page.locator('aside nav input');
+  await expect(renameInput).toBeVisible();
+  await renameInput.press('Escape');
   await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
 
   // Hover over "my first map" item to reveal its delete button
@@ -63,8 +68,10 @@ test('delete button is absent when only one map exists', async ({ page }) => {
 
 test('sidebar stays open after map select on wide screens', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  page.on('dialog', (dialog) => dialog.accept('Map B'));
   await page.getByTitle('New map').click();
+  const renameInput = page.locator('aside nav input');
+  await expect(renameInput).toBeVisible();
+  await renameInput.press('Escape');
   await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
 
   await page.locator('aside nav').getByText('my first map').click();
@@ -74,8 +81,10 @@ test('sidebar stays open after map select on wide screens', async ({ page }) => 
 
 test('sidebar closes after map select on narrow screens', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  page.on('dialog', (dialog) => dialog.accept('Map B'));
   await page.getByTitle('New map').click();
+  const renameInput = page.locator('aside nav input');
+  await expect(renameInput).toBeVisible();
+  await renameInput.press('Escape');
   await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
 
   await page.locator('aside nav').getByText('my first map').click();

@@ -133,8 +133,11 @@ test('after clicking toolbar "child" button, stats panel shows count ≥ 1 for A
 
 test('after creating a map, stats panel shows count ≥ 1 for Create map', async ({ page }) => {
   // Create a new map via the sidebar + button
-  page.on('dialog', (dialog) => dialog.accept('Stats Test Map'));
   await page.getByTitle('New map').click();
+  // Dismiss the inline rename input (Escape keeps the default name)
+  const renameInput = page.locator('aside nav input');
+  await expect(renameInput).toBeVisible();
+  await renameInput.press('Escape');
   // Wait for the new map to appear
   await expect(page.locator('aside').getByText('2 maps')).toBeVisible();
 

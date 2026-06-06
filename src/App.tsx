@@ -95,9 +95,10 @@ function AppInner() {
     if (window.innerWidth <= 640) setSidebarOpen(false);
   }, [switchMap, trackEvent]);
 
-  const handleCreateMap = useCallback((name?: string) => {
-    createMap(name);
+  const handleCreateMap = useCallback((name?: string): string => {
+    const mapId = createMap(name);
     trackEvent('createMap');
+    return mapId;
   }, [createMap, trackEvent]);
 
   const handleDeleteMap = useCallback((mapId: string, mapsRecord: Record<string, MindMap>) => {
