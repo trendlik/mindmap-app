@@ -32,8 +32,13 @@
   border: 1.5px solid #1D9E75;
   border-radius: 8px;
   outline: none;
-  padding: 0 10px;
+  padding: 6px 10px;
   text-align: center;
+  line-height: 20px;
+  resize: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   z-index: 30;
 }
 

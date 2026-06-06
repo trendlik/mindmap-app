@@ -83,21 +83,30 @@ const NODE_LINE_H = 20; // line height for wrapped text
 const NODE_CHAR_W = 7; // approximate character width for DM Sans at 13–14px
 export const ICON_W = 20; // extra left padding when a node has an icon
 
-/** Split label into lines that fit within maxTextW pixels. */
+/** Split label into lines that fit within maxTextW pixels. Honors explicit '\n'. */
 export function wrapText(label: string, maxTextW = NODE_MAX_W - NODE_H_PAD): string[] {
-  const words = label.split(' ');
   const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (current && test.length * NODE_CHAR_W > maxTextW) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = test;
+  // Split on explicit line breaks first into hard segments, then word-wrap each.
+  const segments = label.split('\n');
+  for (const segment of segments) {
+    if (segment === '') {
+      // Preserve blank lines (e.g. consecutive newlines).
+      lines.push('');
+      continue;
     }
+    const words = segment.split(' ');
+    let current = '';
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      if (current && test.length * NODE_CHAR_W > maxTextW) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = test;
+      }
+    }
+    if (current) lines.push(current);
   }
-  if (current) lines.push(current);
   return lines.length ? lines : [''];
 }
 
@@ -105,7 +114,8 @@ export function measureNode(label: string, hasIcon = false): { w: number; h: num
   const iconW = hasIcon ? ICON_W : 0;
   const maxTextW = NODE_MAX_W - NODE_H_PAD;
   const singleW = label.length * NODE_CHAR_W;
-  if (singleW <= maxTextW) {
+  // Labels with explicit line breaks always use the multi-line path below.
+  if (!label.includes('\n') && singleW <= maxTextW) {
     return { w: Math.max(90, singleW + NODE_H_PAD) + iconW, h: 36 };
   }
   const lines = wrapText(label, maxTextW);

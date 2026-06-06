@@ -49,8 +49,14 @@ export function parseTransform(transform: string | null): { tx: number; ty: numb
   };
 }
 
+// The inline node editor is a <textarea> with an inline style attribute.
+// (It used to be an <input>; older specs still reference that via the
+// combined selector below.) It is the only such element overlaid on the
+// canvas, so this uniquely targets the active editor.
+export const CANVAS_EDIT_SELECTOR = 'textarea[style], input[style]';
+
 export async function waitForEditInput(page: Page): Promise<Locator> {
-  const input = page.locator('input[style]');
+  const input = page.locator(CANVAS_EDIT_SELECTOR);
   await input.waitFor({ state: 'visible', timeout: 2000 });
   return input;
 }

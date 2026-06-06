@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink, MapNumbering } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
@@ -238,7 +238,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const lastCanvasTapRef = useRef<{ time: number }>({ time: 0 });
   const touchDragRef = useRef<DragState | null>(null);
   const viewRef = useRef({ tx, ty, scale });
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+  // Caret position to restore after an Alt+Enter line break is committed to the
+  // controlled textarea. Set in the keydown handler, applied in a layout effect
+  // (which runs after React writes the new value to the DOM, so the caret sticks).
+  const pendingCaretRef = useRef<number | null>(null);
   const deleteSelectedRef = useRef<() => void>(() => {});
   const editingIdRef = useRef(editingId);
   const selectedIdRef = useRef(selectedId);
@@ -250,6 +254,15 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const addSiblingRef = useRef<() => void>(() => {});
   const startLinkingRef = useRef<() => void>(() => {});
   const mapIdRef = useRef(map?.id);
+
+  // Restore the caret after an Alt+Enter line break is committed to the textarea.
+  useLayoutEffect(() => {
+    const pos = pendingCaretRef.current;
+    if (pos == null) return;
+    pendingCaretRef.current = null;
+    const ta = editInputRef.current;
+    if (ta) ta.setSelectionRange(pos, pos);
+  }, [editValue]);
 
   useEffect(() => {
     if (map && map.id !== mapIdRef.current) {
@@ -824,9 +837,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   function finishEdit() {
     if (!editingId) return;
-    const v = editValue.trim();
-    if (v) {
-      onUpdateNode(map!.id, editingId, { label: v });
+    // Trim only for the emptiness check; preserve the raw value (including
+    // intentional leading/trailing/internal blank lines) when saving.
+    if (editValue.trim()) {
+      onUpdateNode(map!.id, editingId, { label: editValue });
       trackEvent('nodeInlineEdit');
       logger.logAction('node_label_edited', { mapId: map!.id, nodeId: editingId });
     }
@@ -1302,7 +1316,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       </svg>
 
       {editingId && (
-        <input
+        <textarea
           ref={editInputRef}
           className={styles.editInput}
           style={{
@@ -1316,8 +1330,20 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           onChange={e => setEditValue(e.target.value)}
           onBlur={finishEdit}
           onKeyDown={e => {
-            if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
-            else if (e.key === 'Enter') finishEdit();
+            if (e.key === 'Enter' && e.altKey) {
+              e.preventDefault();
+              const ta = e.currentTarget;
+              const start = ta.selectionStart ?? ta.value.length;
+              const end = ta.selectionEnd ?? start;
+              const next = ta.value.slice(0, start) + '\n' + ta.value.slice(end);
+              // Insert the newline via controlled state and stash the caret; the
+              // layout effect restores it after React commits the new value, so
+              // the caret can't be clobbered by the controlled re-render.
+              pendingCaretRef.current = start + 1;
+              setEditValue(next);
+              trackEvent('nodeLineBreak');
+            } else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
+            else if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
             else if (e.key === 'Escape') setEditingId(null);
           }}
         />

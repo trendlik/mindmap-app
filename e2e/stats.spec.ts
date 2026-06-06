@@ -20,7 +20,7 @@
  *    renders as an <avatarPlaceholder> span inside a button with title "View usage stats".
  */
 
-import { test, expect } from './fixtures';
+import { test, expect, CANVAS_EDIT_SELECTOR } from './fixtures';
 import type { Page } from '@playwright/test';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ const statsBackdrop = (page: Page) =>
 
 /** Add a child node via the toolbar and wait for the inline-edit input to appear,
  *  then dismiss it so the node count increments cleanly. */
-const canvasEditInput = (page: Page) => page.locator('input[style]');
+const canvasEditInput = (page: Page) => page.locator(CANVAS_EDIT_SELECTOR);
 
 async function addChildAndClose(page: Page) {
   await page.getByRole('button', { name: 'child', exact: true }).click();
