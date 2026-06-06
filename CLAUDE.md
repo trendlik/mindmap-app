@@ -49,6 +49,7 @@ Apply these rules whenever implementing a feature, fix, or refactor.
 - Cover the happy path and the primary error or edge case.
 - Reuse existing page-object helpers and fixtures already present in `e2e/` rather than duplicating setup code.
 - Run `npm run test:e2e` and confirm tests pass before marking work done.
+- **Running E2E in a git worktree:** a fresh worktree does NOT inherit gitignored files, including `.env.local`. Without it the app fails to start and the entire suite times out with no obvious error. Before running tests in a worktree, copy it in: `cp <main_repo_root>/.env.local <worktree>/.env.local`.
 - **Canvas `focusNodeId` / `selectedId` interaction**: The `focusNodeId` effect in `Canvas.tsx` is shared by both URL deep-link navigation and sidebar search. Any change that also calls `setSelectedId` inside that effect will make search-matched nodes become *selected* (not just highlighted), which can break existing search E2E tests that use strict-mode Playwright locators keyed on selection-highlight stroke colours. When touching this effect, explicitly run the search E2E tests and check for strict-mode locator violations.
 
 ### Documentation
