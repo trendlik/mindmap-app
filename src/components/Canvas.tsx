@@ -116,6 +116,79 @@ function findSpatialNeighbor(
   return best;
 }
 
+/** Compute the set of node IDs hidden by a collapsed ancestor. */
+function computeHiddenIds(allNodes: Record<string, MindMapNode>): Set<string> {
+  const hiddenIds = new Set<string>();
+  function hideDescendants(parentId: string) {
+    for (const n of Object.values(allNodes)) {
+      if (n.parentId === parentId && !hiddenIds.has(n.id)) {
+        hiddenIds.add(n.id);
+        hideDescendants(n.id);
+      }
+    }
+  }
+  for (const n of Object.values(allNodes)) {
+    if (n.collapsed) hideDescendants(n.id);
+  }
+  return hiddenIds;
+}
+
+/**
+ * Find the nearest free position for a new node so it doesn't overlap existing
+ * visible nodes. Obstacles use CENTER coordinates (x,y) with size (w,h).
+ * Returns (startX, startY) unchanged if it doesn't collide.
+ */
+function findFreePosition(
+  startX: number,
+  startY: number,
+  newW: number,
+  newH: number,
+  obstacles: { x: number; y: number; w: number; h: number }[],
+): { x: number; y: number } {
+  const GAP = 12;
+  const collides = (cx: number, cy: number): boolean => {
+    const aL = cx - newW / 2 - GAP;
+    const aR = cx + newW / 2 + GAP;
+    const aT = cy - newH / 2 - GAP;
+    const aB = cy + newH / 2 + GAP;
+    for (const o of obstacles) {
+      const bL = o.x - o.w / 2;
+      const bR = o.x + o.w / 2;
+      const bT = o.y - o.h / 2;
+      const bB = o.y + o.h / 2;
+      if (aL < bR && aR > bL && aT < bB && aB > bT) return true;
+    }
+    return false;
+  };
+
+  if (!collides(startX, startY)) return { x: startX, y: startY };
+
+  const dirs = [
+    { dx: 0, dy: 1 },   // down
+    { dx: 1, dy: 1 },   // down-right
+    { dx: -1, dy: 1 },  // down-left
+    { dx: 1, dy: 0 },   // right
+    { dx: -1, dy: 0 },  // left
+    { dx: 1, dy: -1 },  // up-right
+    { dx: -1, dy: -1 }, // up-left
+    { dx: 0, dy: -1 },  // up
+  ];
+  const step = Math.max(newH, 40);
+  const MAX_RADIUS = 50;
+  let lastX = startX;
+  let lastY = startY;
+  for (let r = 1; r <= MAX_RADIUS; r++) {
+    for (const d of dirs) {
+      const cx = startX + d.dx * step * r;
+      const cy = startY + d.dy * step * r;
+      lastX = cx;
+      lastY = cy;
+      if (!collides(cx, cy)) return { x: cx, y: cy };
+    }
+  }
+  return { x: lastX, y: lastY };
+}
+
 export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDeleteNode, onReparentNode, onAddLink, onUpdateLink, onDeleteLink, onAutoLayout, onUndo, onRedo, canUndo, canRedo, onExportJson, onExportImg, onExportMd, highlightQuery, focusNodeId, onUpdateMapNumbering }: CanvasProps) {
   const { trackEvent } = useUsageStats();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -768,15 +841,22 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const ch = Object.values(map.nodes).filter(n => n.parentId === pid);
     const grandparent = p.parentId ? map.nodes[p.parentId] : null;
     const xOffset = grandparent && p.x < grandparent.x ? -190 : 190;
-    const id = onAddNode(map.id, 'new idea', p.x + xOffset, p.y + ch.length * 55 - (ch.length - 1) * 27, pid, (p.depth || 0) + 1);
+    const defaultX = p.x + xOffset;
+    const defaultY = p.y + ch.length * 55 - (ch.length - 1) * 27;
+    const { w: newW, h: newH } = measureNode('new idea');
+    const hiddenIds = computeHiddenIds(map.nodes);
+    const obstacles = Object.values(map.nodes)
+      .filter(n => !hiddenIds.has(n.id))
+      .map(n => { const m = measureNode(n.label, !!n.icon); return { x: n.x, y: n.y, w: m.w, h: m.h }; });
+    const { x, y } = findFreePosition(defaultX, defaultY, newW, newH, obstacles);
+    const id = onAddNode(map.id, 'new idea', x, y, pid, (p.depth || 0) + 1);
     trackEvent('addChild');
     setSelectedId(id);
     if (notesOpen) setNotesNodeId(id);
     setTimeout(() => {
-      const n = map.nodes[id] || { label: 'new idea', x: p.x + xOffset, y: p.y };
       const { w, h } = measureNode('new idea');
-      const sx = (n.x - w / 2) * scale + tx;
-      const sy = (n.y - h / 2) * scale + ty;
+      const sx = (x - w / 2) * scale + tx;
+      const sy = (y - h / 2) * scale + ty;
       setEditingId(id);
       setEditValue('new idea');
       setEditPos({ x: sx, y: sy, w: w * scale, h: h * scale });
@@ -787,14 +867,22 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   function addSibling() {
     if (!map || !selectedId) return;
     const n = map.nodes[selectedId];
-    const id = onAddNode(map.id, 'new idea', n.x, n.y + 55, n.parentId, n.depth);
+    const defaultX = n.x;
+    const defaultY = n.y + 55;
+    const { w: newW, h: newH } = measureNode('new idea');
+    const hiddenIds = computeHiddenIds(map.nodes);
+    const obstacles = Object.values(map.nodes)
+      .filter(o => !hiddenIds.has(o.id))
+      .map(o => { const m = measureNode(o.label, !!o.icon); return { x: o.x, y: o.y, w: m.w, h: m.h }; });
+    const { x, y } = findFreePosition(defaultX, defaultY, newW, newH, obstacles);
+    const id = onAddNode(map.id, 'new idea', x, y, n.parentId, n.depth);
     trackEvent('addSibling');
     setSelectedId(id);
     if (notesOpen) setNotesNodeId(id);
     setTimeout(() => {
       const { w, h } = measureNode('new idea');
-      const sx = (n.x - w / 2) * scale + tx;
-      const sy = (n.y + 55 - h / 2) * scale + ty;
+      const sx = (x - w / 2) * scale + tx;
+      const sy = (y - h / 2) * scale + ty;
       setEditingId(id);
       setEditValue('new idea');
       setEditPos({ x: sx, y: sy, w: w * scale, h: h * scale });
@@ -883,21 +971,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   }
 
   // Compute set of node IDs hidden by collapsed ancestors
-  const hiddenIds = new Set<string>();
-  (function collectHidden() {
-    const allNodes = map.nodes;
-    function hideDescendants(parentId: string) {
-      for (const n of Object.values(allNodes)) {
-        if (n.parentId === parentId && !hiddenIds.has(n.id)) {
-          hiddenIds.add(n.id);
-          hideDescendants(n.id);
-        }
-      }
-    }
-    for (const n of Object.values(allNodes)) {
-      if (n.collapsed) hideDescendants(n.id);
-    }
-  })();
+  const hiddenIds = computeHiddenIds(map.nodes);
 
   // Derive the set of nodes that match the current search query for highlighting.
   // In-map search takes priority over the global sidebar search when active.
