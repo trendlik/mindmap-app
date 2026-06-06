@@ -23,7 +23,7 @@ interface SidebarProps {
   mapOrder: string[];
   activeMapId: string;
   onSelect: (mapId: string) => void;
-  onCreate: (name?: string) => void;
+  onCreate: (name?: string) => string;
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
   onRename: (mapId: string, name: string) => void;
   onUpdateLabels: (mapId: string, labels: string[]) => void;
@@ -234,8 +234,8 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   }
 
   function handleNewMap() {
-    const name = window.prompt('Map name:', 'new map');
-    if (name !== null) onCreate(name.trim() || 'new map');
+    const mapId = onCreate();
+    startRename(mapId, 'new map');
   }
 
   const q = searchQuery.toLowerCase().trim();
