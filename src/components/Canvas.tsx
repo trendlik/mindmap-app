@@ -238,7 +238,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const lastCanvasTapRef = useRef<{ time: number }>({ time: 0 });
   const touchDragRef = useRef<DragState | null>(null);
   const viewRef = useRef({ tx, ty, scale });
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
   const deleteSelectedRef = useRef<() => void>(() => {});
   const editingIdRef = useRef(editingId);
   const selectedIdRef = useRef(selectedId);
@@ -1302,7 +1302,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       </svg>
 
       {editingId && (
-        <input
+        <textarea
           ref={editInputRef}
           className={styles.editInput}
           style={{
@@ -1316,8 +1316,22 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
           onChange={e => setEditValue(e.target.value)}
           onBlur={finishEdit}
           onKeyDown={e => {
-            if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
-            else if (e.key === 'Enter') finishEdit();
+            if (e.key === 'Enter' && e.altKey) {
+              e.preventDefault();
+              const ta = e.currentTarget;
+              const start = ta.selectionStart;
+              const end = ta.selectionEnd;
+              const next = editValue.slice(0, start) + '\n' + editValue.slice(end);
+              setEditValue(next);
+              const caret = start + 1;
+              requestAnimationFrame(() => {
+                if (editInputRef.current) {
+                  editInputRef.current.selectionStart = caret;
+                  editInputRef.current.selectionEnd = caret;
+                }
+              });
+            } else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
+            else if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
             else if (e.key === 'Escape') setEditingId(null);
           }}
         />
