@@ -36,7 +36,8 @@
   text-align: center;
   line-height: 20px;
   resize: none;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   box-sizing: border-box;
   z-index: 30;
 }

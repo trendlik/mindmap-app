@@ -824,9 +824,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   function finishEdit() {
     if (!editingId) return;
-    const v = editValue.trim();
-    if (v) {
-      onUpdateNode(map!.id, editingId, { label: v });
+    // Trim only for the emptiness check; preserve the raw value (including
+    // intentional leading/trailing/internal blank lines) when saving.
+    if (editValue.trim()) {
+      onUpdateNode(map!.id, editingId, { label: editValue });
       trackEvent('nodeInlineEdit');
       logger.logAction('node_label_edited', { mapId: map!.id, nodeId: editingId });
     }
@@ -1319,17 +1320,18 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
             if (e.key === 'Enter' && e.altKey) {
               e.preventDefault();
               const ta = e.currentTarget;
-              const start = ta.selectionStart;
-              const end = ta.selectionEnd;
-              const next = editValue.slice(0, start) + '\n' + editValue.slice(end);
-              setEditValue(next);
+              const start = ta.selectionStart ?? ta.value.length;
+              const end = ta.selectionEnd ?? start;
+              const next = ta.value.slice(0, start) + '\n' + ta.value.slice(end);
               const caret = start + 1;
-              requestAnimationFrame(() => {
-                if (editInputRef.current) {
-                  editInputRef.current.selectionStart = caret;
-                  editInputRef.current.selectionEnd = caret;
-                }
-              });
+              // Update React state and synchronously set the DOM value + caret.
+              // React's next render writes the same string back to value, which
+              // leaves the selection intact — so immediately-typed characters
+              // land after the inserted newline (no requestAnimationFrame race).
+              setEditValue(next);
+              ta.value = next;
+              ta.setSelectionRange(caret, caret);
+              trackEvent('nodeLineBreak');
             } else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
             else if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
             else if (e.key === 'Escape') setEditingId(null);
