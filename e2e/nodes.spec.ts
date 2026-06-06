@@ -1,4 +1,4 @@
-import { test, expect, waitForEditInput } from './fixtures';
+import { test, expect, waitForEditInput, CANVAS_EDIT_SELECTOR } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const childBtn = (page: Page) =>
@@ -109,7 +109,7 @@ test('pressing Escape during rename cancels the edit', async ({ page }) => {
   const input = await waitForEditInput(page);
   await input.fill('Should Not Save');
   await input.press('Escape');
-  await expect(page.locator('input[style]')).toHaveCount(0);
+  await expect(page.locator(CANVAS_EDIT_SELECTOR)).toHaveCount(0);
   await expect(page.locator('[data-node-id]').first()).toContainText('my first map');
 });
 

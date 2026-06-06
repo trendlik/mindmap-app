@@ -1,10 +1,10 @@
-import { test, expect } from './fixtures';
+import { test, expect, CANVAS_EDIT_SELECTOR } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const childBtn = (page: Page) =>
   page.getByRole('button', { name: 'child', exact: true });
 const canvasEditInput = (page: Page) =>
-  page.locator('input[style]');
+  page.locator(CANVAS_EDIT_SELECTOR);
 const numberingToggle = (page: Page) =>
   page.getByTestId('numbering-toggle');
 const numberingStylePrefix = (page: Page) =>
