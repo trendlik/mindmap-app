@@ -6,10 +6,16 @@
  *  - Alt+Enter (Opt+Enter on Mac) inserts a newline at the caret while editing.
  *  - Plain Enter finishes editing (does NOT insert a newline).
  *  - A node label containing "\n" renders as one <tspan> line per text line.
+ *
+ * Editing the canvas textarea reliably requires care: startEdit focuses and
+ * selects the field via a deferred setTimeout, so tests wait for the field to be
+ * focused before typing, and type with pressSequentially (real per-character key
+ * events) so React's controlled onChange stays in sync — fill()'s one-shot value
+ * set can race the deferred select() and desync React's input value tracker.
  */
 
 import { test, expect, waitForEditInput, CANVAS_EDIT_SELECTOR } from './fixtures';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 // The <tspan> elements that hold the wrapped/broken label lines for the
 // first (root) node.
@@ -17,32 +23,34 @@ function nodeTspans(page: Page) {
   return page.locator('[data-node-id]').first().locator('tspan');
 }
 
+// Open the root node for editing and return a focused, empty textarea.
+async function editRootNode(page: Page): Promise<Locator> {
+  await page.locator('[data-node-id]').first().dblclick();
+  const ta = await waitForEditInput(page);
+  // Wait for startEdit's deferred focus()/select() to have run before typing.
+  await expect(ta).toBeFocused();
+  await ta.press('ControlOrMeta+a');
+  return ta;
+}
+
 test('Alt+Enter inserts a line break that renders as multiple tspan lines', async ({ page }) => {
   // Sanity: the root node starts as a single line of text.
   await expect(nodeTspans(page)).toHaveCount(1);
 
-  await page.locator('[data-node-id]').first().dblclick();
-  const ta = await waitForEditInput(page);
+  const ta = await editRootNode(page);
+  await ta.pressSequentially('First');
+  await expect(ta).toHaveValue('First');
 
-  // Start from a clean editor and seed the first line, then place the
-  // caret at the end so Alt+Enter inserts a break after it.
-  await ta.fill('First');
-  await ta.press('End');
   // Alt+Enter inserts an explicit line break at the caret.
   await ta.press('Alt+Enter');
-  // The handler updates state then restores the caret in a requestAnimationFrame.
-  // Wait for the newline to land in the value before typing the next line,
-  // otherwise typing can race the caret restoration.
   await expect(ta).toHaveValue('First\n');
-  // Type the second line in a single insert so the editor's caret-restore
-  // (a requestAnimationFrame after the Alt+Enter handler) cannot interleave
-  // with per-character typing and scramble the caret position.
-  await page.keyboard.insertText('Second');
+
+  // The caret is restored just after the newline, so typing continues on line 2.
+  await ta.pressSequentially('Second');
   await expect(ta).toHaveValue('First\nSecond');
+
   // Plain Enter finishes editing.
   await ta.press('Enter');
-
-  // Editor closed.
   await expect(page.locator(CANVAS_EDIT_SELECTOR)).toHaveCount(0);
 
   // The label now renders across two tspan lines.
@@ -52,13 +60,12 @@ test('Alt+Enter inserts a line break that renders as multiple tspan lines', asyn
 });
 
 test('plain Enter finishes editing without inserting a newline (stays single line)', async ({ page }) => {
-  await page.locator('[data-node-id]').first().dblclick();
-  const ta = await waitForEditInput(page);
+  const ta = await editRootNode(page);
+  await ta.pressSequentially('OneLine');
+  await expect(ta).toHaveValue('OneLine');
 
-  await ta.fill('OneLine');
   // Plain Enter should finish editing, not add a newline.
   await ta.press('Enter');
-
   await expect(page.locator(CANVAS_EDIT_SELECTOR)).toHaveCount(0);
 
   // Still a single rendered line.

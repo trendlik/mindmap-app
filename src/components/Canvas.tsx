@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { colorForDepth, measureNode, wrapText, ICON_W } from '../store/useMindMapStore';
 import type { MindMap, MindMapNode, Edge, CustomLink, MapNumbering } from '../store/useMindMapStore';
 import { useUsageStats } from '../contexts/UsageStatsContext';
@@ -239,6 +239,10 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const touchDragRef = useRef<DragState | null>(null);
   const viewRef = useRef({ tx, ty, scale });
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+  // Caret position to restore after an Alt+Enter line break is committed to the
+  // controlled textarea. Set in the keydown handler, applied in a layout effect
+  // (which runs after React writes the new value to the DOM, so the caret sticks).
+  const pendingCaretRef = useRef<number | null>(null);
   const deleteSelectedRef = useRef<() => void>(() => {});
   const editingIdRef = useRef(editingId);
   const selectedIdRef = useRef(selectedId);
@@ -250,6 +254,15 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const addSiblingRef = useRef<() => void>(() => {});
   const startLinkingRef = useRef<() => void>(() => {});
   const mapIdRef = useRef(map?.id);
+
+  // Restore the caret after an Alt+Enter line break is committed to the textarea.
+  useLayoutEffect(() => {
+    const pos = pendingCaretRef.current;
+    if (pos == null) return;
+    pendingCaretRef.current = null;
+    const ta = editInputRef.current;
+    if (ta) ta.setSelectionRange(pos, pos);
+  }, [editValue]);
 
   useEffect(() => {
     if (map && map.id !== mapIdRef.current) {
@@ -1323,14 +1336,11 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
               const start = ta.selectionStart ?? ta.value.length;
               const end = ta.selectionEnd ?? start;
               const next = ta.value.slice(0, start) + '\n' + ta.value.slice(end);
-              const caret = start + 1;
-              // Update React state and synchronously set the DOM value + caret.
-              // React's next render writes the same string back to value, which
-              // leaves the selection intact — so immediately-typed characters
-              // land after the inserted newline (no requestAnimationFrame race).
+              // Insert the newline via controlled state and stash the caret; the
+              // layout effect restores it after React commits the new value, so
+              // the caret can't be clobbered by the controlled re-render.
+              pendingCaretRef.current = start + 1;
               setEditValue(next);
-              ta.value = next;
-              ta.setSelectionRange(caret, caret);
               trackEvent('nodeLineBreak');
             } else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishEdit(); addSiblingRef.current(); }
             else if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
