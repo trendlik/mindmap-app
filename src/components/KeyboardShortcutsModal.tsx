@@ -30,6 +30,9 @@ const SHORTCUTS = [
       { keys: ['⌘', '⇧', 'Z'], description: 'Redo' },
       { keys: ['Esc'], description: 'Close / deselect' },
       { keys: ['?'], description: 'Show shortcuts' },
+      { keys: ['+'], description: 'Zoom in' },
+      { keys: ['−'], description: 'Zoom out' },
+      { keys: ['0'], description: 'Reset zoom to 100%' },
     ],
   },
 ];
