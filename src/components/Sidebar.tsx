@@ -234,6 +234,8 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   }
 
   function handleNewMap() {
+    setSearchQuery('');
+    setFocusedResultIndex(-1);
     const mapId = onCreate();
     startRename(mapId, 'new map');
   }
