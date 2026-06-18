@@ -44,6 +44,10 @@ Apply these rules whenever implementing a feature, fix, or refactor.
 - Use an existing feature key if one fits; otherwise add a new string key that matches the pattern already used in `UsageStatsContext.tsx`.
 - Do not add `console.log` statements; remove any that appear during development before committing.
 
+### Input & gesture changes
+- When a change touches an input or gesture (mouse, wheel/scroll, touch, zoom, pan, drag), consider whether a keyboard-equivalent shortcut is also expected — for this app it usually is. Surface it up front rather than bolting it on later.
+- Keyboard shortcuts that reuse keys the browser/OS also binds (e.g. `+`/`-`/`0`, which the browser uses for page zoom with Cmd/Ctrl) must guard bare keys with `!e.metaKey && !e.ctrlKey` so the modified combos still pass through to the browser.
+
 ### Tests
 - Add a Playwright E2E test in `e2e/` for every new user-facing flow.
 - Cover the happy path and the primary error or edge case.
