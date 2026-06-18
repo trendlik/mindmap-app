@@ -253,6 +253,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   const addChildRef = useRef<() => void>(() => {});
   const addSiblingRef = useRef<() => void>(() => {});
   const startLinkingRef = useRef<() => void>(() => {});
+  const zoomByRef = useRef<(delta: number) => void>(() => {});
+  const resetZoomRef = useRef<() => void>(() => {});
   const mapIdRef = useRef(map?.id);
 
   // Restore the caret after an Alt+Enter line break is committed to the textarea.
@@ -615,6 +617,18 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (e.key === 'l' || e.key === 'L') {
           startLinkingRef.current();
         }
+        if (!e.metaKey && !e.ctrlKey && (e.key === '+' || e.key === '=')) {
+          e.preventDefault();
+          zoomByRef.current(1.1);
+        }
+        if (!e.metaKey && !e.ctrlKey && (e.key === '-' || e.key === '_')) {
+          e.preventDefault();
+          zoomByRef.current(0.9);
+        }
+        if (!e.metaKey && !e.ctrlKey && e.key === '0') {
+          e.preventDefault();
+          resetZoomRef.current();
+        }
         if (e.key === ' ' && selectedIdRef.current) {
           e.preventDefault();
           toggleCollapseRef.current();
@@ -668,14 +682,12 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
 
   function onWheel(e: React.WheelEvent) {
     e.preventDefault();
-    const { cx, cy } = getSVGXY(e as unknown as MouseEvent);
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const ns = Math.min(3, Math.max(0.15, viewRef.current.scale * delta));
-    const ntx = cx - (cx - viewRef.current.tx) * (ns / viewRef.current.scale);
-    const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
-    setTx(ntx); setTy(nty); setScale(ns);
-    onSaveView(map!.id, ntx, nty, ns);
-    trackEvent('zoom');
+    if (e.deltaX === 0 && e.deltaY === 0) return;
+    const ntx = viewRef.current.tx - e.deltaX;
+    const nty = viewRef.current.ty - e.deltaY;
+    setTx(ntx); setTy(nty);
+    onSaveView(map!.id, ntx, nty, viewRef.current.scale);
+    trackEvent('pan');
   }
 
   function zoomBy(delta: number) {
@@ -688,6 +700,20 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
     const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
     setTx(ntx); setTy(nty); setScale(ns);
     if (map) onSaveView(map.id, ntx, nty, ns);
+    trackEvent('zoom');
+  }
+
+  function resetZoom() {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const ns = 1;
+    const ntx = cx - (cx - viewRef.current.tx) * (ns / viewRef.current.scale);
+    const nty = cy - (cy - viewRef.current.ty) * (ns / viewRef.current.scale);
+    setTx(ntx); setTy(nty); setScale(ns);
+    if (map) onSaveView(map.id, ntx, nty, ns);
+    trackEvent('zoom');
   }
 
   function onTouchStart(e: React.TouchEvent<SVGSVGElement>) {
@@ -947,6 +973,8 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
   addChildRef.current = addChild;
   addSiblingRef.current = addSibling;
   startLinkingRef.current = startLinking;
+  zoomByRef.current = zoomBy;
+  resetZoomRef.current = resetZoom;
   inMapSearchOpenRef.current = inMapSearchOpen;
   shortcutsOpenRef.current = shortcutsOpen;
 
@@ -1495,7 +1523,7 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
       <div className={styles.hint}>
         {'ontouchstart' in window
           ? 'double-tap to edit · drag to pan · pinch to zoom'
-          : 'double-click to edit · drag to pan · scroll to zoom'}
+          : 'double-click to edit · drag or scroll to pan · +/− to zoom'}
       </div>
       <div className={styles.zoom}>
         <button className={styles.zoomBtn} onClick={() => zoomBy(0.9)} title="Zoom out">−</button>
