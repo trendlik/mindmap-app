@@ -13,7 +13,7 @@
  *  The top-level <g> inside the SVG carries `translate(tx,ty) scale(s)`.
  */
 
-import { test, expect, parseTransform } from './fixtures';
+import { test, expect, parseTransform, waitForEditInput } from './fixtures';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,4 +113,43 @@ test('keyboard +/− zoom and 0 resets to 100%', async ({ page }) => {
   await page.keyboard.press('0');
   expect(await readZoomPct(page)).toBe(100);
   expect(await readScale(page)).toBeCloseTo(1, 5);
+});
+
+test('typing +, − and 0 while editing a node does NOT trigger zoom shortcuts', async ({ page }) => {
+  const pctBefore = await readZoomPct(page);
+
+  // Enter inline edit mode on the root node.
+  await page.locator('[data-node-id]').first().dblclick();
+  const input = await waitForEditInput(page);
+
+  // Type a literal label containing the zoom shortcut characters. Use
+  // pressSequentially (not fill) so real keydown events fire and would
+  // trigger the bare-key zoom handlers if the edit guard were missing.
+  await input.fill('');
+  await input.pressSequentially('1+1=0');
+
+  // The textarea must contain the literal text we typed.
+  await expect(input).toHaveValue('1+1=0');
+
+  // The zoom percentage must be unchanged — shortcuts must not fire while editing.
+  expect(await readZoomPct(page)).toBe(pctBefore);
+});
+
+test('Control+0 passes through to the browser and does NOT reset app zoom', async ({ page }) => {
+  await focusEmptyCanvas(page);
+
+  // Zoom in a couple of times so the current zoom is clearly not 100%.
+  await page.keyboard.press('+');
+  await page.keyboard.press('+');
+  const pctZoomed = await readZoomPct(page);
+  expect(pctZoomed).toBeGreaterThan(100);
+
+  // Cmd/Ctrl+0 is the browser's native zoom-reset shortcut — the app must
+  // not consume it, so the app's own zoom percentage stays unchanged.
+  await page.keyboard.press('Control+0');
+  expect(await readZoomPct(page)).toBe(pctZoomed);
+
+  // Cmd/Ctrl+= is the browser's native zoom-in shortcut — likewise unchanged.
+  await page.keyboard.press('Control+=');
+  expect(await readZoomPct(page)).toBe(pctZoomed);
 });

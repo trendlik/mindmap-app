@@ -617,15 +617,15 @@ export default function Canvas({ map, onSaveView, onAddNode, onUpdateNode, onDel
         if (e.key === 'l' || e.key === 'L') {
           startLinkingRef.current();
         }
-        if (e.key === '+' || e.key === '=') {
+        if (!e.metaKey && !e.ctrlKey && (e.key === '+' || e.key === '=')) {
           e.preventDefault();
           zoomByRef.current(1.1);
         }
-        if (e.key === '-' || e.key === '_') {
+        if (!e.metaKey && !e.ctrlKey && (e.key === '-' || e.key === '_')) {
           e.preventDefault();
           zoomByRef.current(0.9);
         }
-        if (e.key === '0') {
+        if (!e.metaKey && !e.ctrlKey && e.key === '0') {
           e.preventDefault();
           resetZoomRef.current();
         }
