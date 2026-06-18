@@ -88,6 +88,12 @@ function AppInner() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, [maps, switchMap, handleNodeFocus]);
 
+  useEffect(() => {
+    const base = 'Mind Maps';
+    const name = user ? activeMap?.name?.trim() : '';
+    document.title = name ? `${base} — ${name}` : base;
+  }, [user, activeMap?.name]);
+
   const handleSelectMap = useCallback((mapId: string) => {
     switchMap(mapId);
     trackEvent('switchMap');
