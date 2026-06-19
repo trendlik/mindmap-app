@@ -35,7 +35,9 @@ jobs:
           projectId: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
 
       - name: Deploy Firestore rules
-        uses: w9jds/firebase-action@master
+        # Pinned to v15.21.0: floating @master pulled firebase-tools v15.22.0,
+        # which broke GCP_SA_KEY service-account auth ("Failed to authenticate").
+        uses: w9jds/firebase-action@v15.21.0
         with:
           args: deploy --only firestore:rules
         env:
