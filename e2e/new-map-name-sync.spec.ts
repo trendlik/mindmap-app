@@ -8,10 +8,16 @@
  *    like `#mapId` on load) used to re-run and revert the active map back to
  *    whatever the URL hash still pointed at every time `maps` changed —
  *    including immediately after creating a new map, before the
- *    `[activeMapId]` effect had a chance to rewrite the hash. It is now
- *    gated by a one-shot `initialHashMapSyncDone` ref so it only ever applies
- *    the deep link once, on initial load, and never fights a later in-app
- *    map switch such as "New map".
+ *    `[activeMapId]` effect had a chance to rewrite the hash. An earlier
+ *    version of the fix gated this with a one-shot `initialHashMapSyncDone`
+ *    ref, but that was insufficient: on a cold load with no hash in the URL
+ *    it would never arm, so the very first "New map" click afterwards was
+ *    misread as *the* initial deep link and mishandled. The actual fix
+ *    instead captures `location.hash` itself (map id + node id) into a
+ *    `pendingDeepLink` ref at first render — before any effect can rewrite
+ *    `location.hash` — and consumes it once the deep-linked map
+ *    becomes available in `maps`, so it only ever applies a *real* deep link
+ *    and never fights a later in-app map switch such as "New map".
  *  - src/store/useMindMapStore.ts: `renameMap(mapId, name, syncRootLabel)` —
  *    when `syncRootLabel` is true, also updates the root node's (parentId
  *    === null) label to the new name, but only while the root's label still
@@ -31,19 +37,21 @@
  * Tests:
  *  1. Happy path — create a new map, rename it to "Roadmap" via the inline
  *     rename input. Sidebar row and canvas root node both read "Roadmap".
- *  2. Focus switch (the actual regression) — clicking "New map" must switch
+ *  2. `renamingNewMap` reset — after the creation rename commits, renaming
+ *     that SAME map again must NOT touch its root node a second time.
+ *  3. Focus switch (the actual regression) — clicking "New map" must switch
  *     to, and stay on, the new map: canvas shows a single root node labelled
  *     "new map" (not "Alpha Map"), and `location.hash` is the new map's id.
  *     Under the pre-fix code this reverts back to "Alpha Map" / its hash.
- *  3. Later rename of an existing map does NOT touch its root node — only
- *     the creation-time rename propagates.
- *  4. Escape (and, separately, a whitespace-only name) during the creation
+ *  4. Later rename of a DIFFERENT existing map does NOT touch its root node —
+ *     only the creation-time rename propagates.
+ *  5. Escape (and, separately, a whitespace-only name) during the creation
  *     rename commits nothing: both the map name and its root node stay
  *     "new map".
  */
 
 import { test as base, expect, type Page } from '@playwright/test';
-import { TEST_USER, makeMap } from './fixtures';
+import { TEST_USER, makeMap, waitForPageReady, CANVAS_EDIT_SELECTOR } from './fixtures';
 
 // ─── stable IDs ──────────────────────────────────────────────────────────────
 
@@ -70,8 +78,7 @@ const test = base.extend<{ page: Page }>({
       localStorage.setItem('mindmaps_v2', JSON.stringify(params.state));
     }, { user: TEST_USER, state });
 
-    await page.goto('/');
-    await page.getByText('maps', { exact: true }).waitFor();
+    await waitForPageReady(page);
     // Confirm the two-map seed was picked up before each test runs.
     await page.locator('aside nav').getByText('Alpha Map', { exact: true }).waitFor();
     await use(page);
@@ -117,7 +124,36 @@ test('creating a new map and renaming it syncs the sidebar title and the root no
   await expect(canvasNode(page)).toHaveText('Roadmap');
 });
 
-// ─── 2. Focus switch — creating a map actually switches to it and stays there ─
+// ─── 2. `renamingNewMap` must be reset after the creation rename commits ─────
+// (a leaked `true` would make a later rename of the SAME map also rewrite
+// its root node; test 4 below renames a *different* map so it can't catch this)
+
+test('renaming the same map again later (after the creation rename) does not touch its root node', async ({ page }) => {
+  await page.getByTitle('New map').click();
+
+  const ri = renameInput(page);
+  await expect(ri).toBeVisible();
+  await expect(ri).toBeFocused();
+  await ri.fill('Roadmap');
+  await ri.press('Enter');
+
+  await expect(page.locator('aside nav').getByText('Roadmap', { exact: true })).toBeVisible();
+  await expect(canvasNode(page)).toHaveText('Roadmap');
+
+  // Double-click-rename the SAME map a second time.
+  await page.locator('aside nav').getByText('Roadmap', { exact: true }).dblclick();
+  const ri2 = renameInput(page);
+  await expect(ri2).toBeVisible();
+  await ri2.fill('Backlog');
+  await ri2.press('Enter');
+
+  // Sidebar title changed, but the root node must still read the first
+  // (creation-time) rename, not the second.
+  await expect(page.locator('aside nav').getByText('Backlog', { exact: true })).toBeVisible();
+  await expect(canvasNode(page)).toHaveText('Roadmap');
+});
+
+// ─── 3. Focus switch — creating a map actually switches to it and stays there ─
 
 test('creating a new map switches the canvas and URL hash to the new map, not back to the previous one', async ({ page }) => {
   await page.getByTitle('New map').click();
@@ -132,7 +168,7 @@ test('creating a new map switches the canvas and URL hash to the new map, not ba
   // No inline canvas editor should have been auto-opened by the focus switch itself
   // (only the sidebar rename input should be active; the canvas editor is the overlay
   // textarea/input with an inline `style` attribute — the sidebar rename input has none).
-  await expect(page.locator('textarea[style], input[style]')).toHaveCount(0);
+  await expect(page.locator(CANVAS_EDIT_SELECTOR)).toHaveCount(0);
 
   // The URL hash must point at the new map's id, not at "Alpha Map"'s id.
   const state = await readMapsState(page);
@@ -142,7 +178,7 @@ test('creating a new map switches the canvas and URL hash to the new map, not ba
   expect(hash).not.toBe(`#${IDS.mapAlpha}`);
 });
 
-// ─── 3. Later rename of an existing map must NOT touch its root node ─────────
+// ─── 4. Later rename of an existing map must NOT touch its root node ─────────
 
 test('renaming an existing (non-new) map later does not change its root node label', async ({ page }) => {
   // Double-click "Beta Map" to enter its rename input (this bypasses onSelect,
@@ -164,7 +200,7 @@ test('renaming an existing (non-new) map later does not change its root node lab
   await expect(canvasNode(page)).toHaveText('Beta Map');
 });
 
-// ─── 4. Escape / whitespace-only rename during creation commits nothing ──────
+// ─── 5. Escape / whitespace-only rename during creation commits nothing ──────
 
 test('pressing Escape during the post-creation rename leaves both the map name and root node as "new map"', async ({ page }) => {
   await page.getByTitle('New map').click();

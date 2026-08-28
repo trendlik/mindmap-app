@@ -47,30 +47,36 @@ function AppInner() {
   const activeMap = activeMapId ? maps[activeMapId] : null;
 
   const initialNodeFocusDone = useRef(false);
-  // Deep-link map id captured at first render, before the hash-writing effect
-  // below can overwrite location.hash. Consumed once the map is available and
-  // never re-armed, so a later in-app map switch (e.g. creating a new map)
-  // can't be reverted by a hash the app wrote itself.
-  const pendingDeepLinkMapId = useRef(location.hash.slice(1).split('/')[0]);
+  // Deep-link map id + node id, both captured at first render (before the
+  // hash-writing effect below can overwrite location.hash), and consumed
+  // together once the map becomes available in `maps` (Firestore arrives
+  // after mount). Capturing the node id here too — rather than re-reading
+  // the live hash in the effect below — matters because the `[activeMapId]`
+  // effect may have already pushState'd `#activeMapId` over the deep link by
+  // the time `maps` resolves, which would otherwise make the node segment
+  // silently disappear. Cleared by any user-initiated map switch
+  // (handleSelectMap / handleCreateMap) so neither half can later yank the
+  // user back onto, or refocus a node on, a map they've since navigated away
+  // from.
+  const pendingDeepLink = useRef(location.hash.slice(1).split('/'));
 
   const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
     if (mapId !== activeMapId) switchMap(mapId);
     setFocusedNode({ mapId, nodeId });
   }, [activeMapId, switchMap]);
 
-  // Apply the INITIAL deep link (#mapId or #mapId/nodeId) once `maps` has loaded
-  // (Firestore arrives after mount). Consumes the id captured at first render so
-  // it never overrides a later in-app map switch (e.g. creating a new map).
+  // Apply the INITIAL deep link (#mapId or #mapId/nodeId) once `maps` has loaded.
+  // Consumes the id(s) captured at first render so this never overrides a later
+  // in-app map switch (e.g. creating a new map).
   useEffect(() => {
-    const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
-    const deepLinkMapId = pendingDeepLinkMapId.current;
-    if (deepLinkMapId && maps[deepLinkMapId]) {
-      pendingDeepLinkMapId.current = '';
+    const [deepLinkMapId, deepLinkNodeId] = pendingDeepLink.current;
+    if (deepLinkMapId && Object.prototype.hasOwnProperty.call(maps, deepLinkMapId)) {
+      pendingDeepLink.current = [];
       if (deepLinkMapId !== activeMapId) switchMap(deepLinkMapId);
-    }
-    if (!initialNodeFocusDone.current && hashNodeId && hashMapId && maps[hashMapId]?.nodes[hashNodeId]) {
-      initialNodeFocusDone.current = true;
-      handleNodeFocus(hashMapId, hashNodeId);
+      if (!initialNodeFocusDone.current && deepLinkNodeId && Object.prototype.hasOwnProperty.call(maps[deepLinkMapId].nodes, deepLinkNodeId)) {
+        initialNodeFocusDone.current = true;
+        handleNodeFocus(deepLinkMapId, deepLinkNodeId);
+      }
     }
   }, [maps]);
 
@@ -86,7 +92,7 @@ function AppInner() {
   useEffect(() => {
     function onHashChange() {
       const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
-      if (hashMapId && maps[hashMapId]) {
+      if (hashMapId && Object.prototype.hasOwnProperty.call(maps, hashMapId)) {
         switchMap(hashMapId);
         if (hashNodeId) {
           handleNodeFocus(hashMapId, hashNodeId);
@@ -104,6 +110,10 @@ function AppInner() {
   }, [user, activeMap?.name]);
 
   const handleSelectMap = useCallback((mapId: string) => {
+    // A deliberate map switch consumes any still-armed deep link, so a late
+    // Firestore snapshot for the deep-linked map can't later yank the user
+    // (or refocus a node) back onto a map they've already navigated away from.
+    pendingDeepLink.current = [];
     switchMap(mapId);
     trackEvent('switchMap');
     setFocusedNode(null);
@@ -111,6 +121,7 @@ function AppInner() {
   }, [switchMap, trackEvent]);
 
   const handleCreateMap = useCallback((name?: string): string => {
+    pendingDeepLink.current = [];
     const mapId = createMap(name);
     trackEvent('createMap');
     return mapId;
