@@ -37,8 +37,15 @@
  * Tests:
  *  1. Happy path — create a new map, rename it to "Roadmap" via the inline
  *     rename input. Sidebar row and canvas root node both read "Roadmap".
- *  2. `renamingNewMap` reset — after the creation rename commits, renaming
- *     that SAME map again must NOT touch its root node a second time.
+ *  2. Same-map re-rename — after the creation rename commits, renaming that
+ *     SAME map again later must NOT re-sync its root node a second time.
+ *     Note: this does NOT cover the `setRenamingNewMap(false)` reset in
+ *     `commitRename` (Sidebar.tsx) — `startRename` is the sole authority for
+ *     `renamingNewMap` (it always sets the flag, `false` by default, and the
+ *     double-click rename path below relies on that default), so that reset
+ *     is defensive, not load-bearing; deleting it leaves this test passing.
+ *     This test does fail under a `renameMap`/`syncRootLabel` revert, which
+ *     is the regression it actually guards against.
  *  3. Focus switch (the actual regression) — clicking "New map" must switch
  *     to, and stay on, the new map: canvas shows a single root node labelled
  *     "new map" (not "Alpha Map"), and `location.hash` is the new map's id.
@@ -124,11 +131,14 @@ test('creating a new map and renaming it syncs the sidebar title and the root no
   await expect(canvasNode(page)).toHaveText('Roadmap');
 });
 
-// ─── 2. `renamingNewMap` must be reset after the creation rename commits ─────
-// (a leaked `true` would make a later rename of the SAME map also rewrite
-// its root node; test 4 below renames a *different* map so it can't catch this)
+// ─── 2. A later rename of the SAME map must NOT re-sync its root node ────────
+// (test 4 below renames a *different* map, so it can't catch a leaked
+// `renamingNewMap` flag; this one renames the map that WAS the target of the
+// creation-time sync, later, to confirm that sync doesn't repeat. See the
+// header comment above for why this does not exercise the `commitRename`
+// reset specifically.)
 
-test('renaming the same map again later (after the creation rename) does not touch its root node', async ({ page }) => {
+test('a later rename of the same map (after the creation rename) does not re-sync its root node', async ({ page }) => {
   await page.getByTitle('New map').click();
 
   const ri = renameInput(page);

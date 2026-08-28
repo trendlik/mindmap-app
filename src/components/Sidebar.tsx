@@ -232,7 +232,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
       const v = editValue.trim();
       if (v) onRename(editingId, v, renamingNewMap);
       setEditingId(null);
-      setRenamingNewMap(false);
+      setRenamingNewMap(false); // defensive: startRename is the sole authority for this flag (always sets it, `false` by default), so this reset is not load-bearing
     }
   }
 
