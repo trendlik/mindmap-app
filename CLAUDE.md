@@ -74,6 +74,8 @@ The app uses hash-based routing. Two formats are supported:
 
 The hash is written as `#mapId` only when the active map changes; node focus is never auto-reflected in the address bar. A "copy link" button in the Toolbar writes the full `#mapId/nodeId` URL to the clipboard explicitly.
 
+The hash→active-map deep link is captured once, at first render (before any effect can rewrite `location.hash`), and consumed as soon as that map becomes available in `maps` (Firestore arrives after mount). Because the id is captured before the app ever writes its own `#activeMapId` hash, a later in-app map switch (e.g. creating a new map via the sidebar) can't be mistaken for a deep link and bounced back by a stale hash. The separate `hashchange` listener (for browser back/forward navigation) is unaffected and always applies the hash.
+
 ### Auth flow
 `AuthProvider` (context in `src/contexts/AuthContext.tsx`) wraps the app. `AuthGate` component shows a sign-in screen when unauthenticated, or renders children when signed in. The `user.uid` is passed to the store hook to scope Firestore reads/writes.
 
@@ -91,6 +93,7 @@ The hash is written as `#mapId` only when the active map changes; node focus is 
 - On first sign-in, localStorage maps are migrated to Firestore. After that, Firestore snapshots are the source of truth.
 - IDs use `crypto.randomUUID()` (safe for multi-device).
 - `colorForDepth()` and `measureNode()` are exported utilities used by both Canvas and export.
+- `renameMap(mapId, name, syncRootLabel?)`: the optional `syncRootLabel` flag (default `false`) also renames the map's root node to match, but only if the root node's label still equals the map's pre-rename name (divergence guard). The Sidebar passes `syncRootLabel: true` only for the inline rename that auto-starts immediately after creating a new map, so a newly created map's title and root node stay in sync; ordinary later renames never touch the root node.
 
 ### Firestore sync (`src/store/firestoreSync.ts`)
 - Data model: `users/{uid}/maps/{mapId}` — one document per map.

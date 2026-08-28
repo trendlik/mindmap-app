@@ -46,23 +46,56 @@ function AppInner() {
 
   const activeMap = activeMapId ? maps[activeMapId] : null;
 
-  const initialNodeFocusDone = useRef(false);
+  // Deep-link map id + node id, both captured at first render (before the
+  // hash-writing effect below can overwrite location.hash). The two halves
+  // resolve on different schedules, so they're consumed separately:
+  //  - The MAP half is one-shot: it fires the moment the map first appears
+  //    in `maps` and is marked done via `initialMapSwitchDone` right then,
+  //    regardless of whether the node half has resolved yet. This is what
+  //    must never fire twice — without a separate one-shot flag, re-running
+  //    this effect after a later in-app map switch (e.g. creating a new map)
+  //    would see the still-populated ref and switchMap back to the stale
+  //    deep-linked map.
+  //  - The NODE half stays armed until the node is actually found. `maps` is
+  //    seeded synchronously from localStorage, so on a device whose cached
+  //    copy of the map is stale (the node was added elsewhere), the node may
+  //    not exist yet on the mount pass; it only shows up once a later
+  //    Firestore snapshot lands, which re-runs this effect (dep: `[maps]`)
+  //    and gets another chance to resolve it. Only once the node is found
+  //    (or there was no node segment to begin with) is `pendingDeepLink`
+  //    cleared.
+  // Also cleared by any user-initiated map switch (handleSelectMap /
+  // handleCreateMap / handleNodeFocus), by deleting the deep-linked map
+  // (handleDeleteMap), and by a genuine hash navigation (onHashChange) so
+  // none of these can later yank the user back onto, or refocus a node on,
+  // a map they've since navigated away from.
+  const initialMapSwitchDone = useRef(false);
+  const pendingDeepLink = useRef(location.hash.slice(1).split('/'));
 
   const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
+    pendingDeepLink.current = [];
     if (mapId !== activeMapId) switchMap(mapId);
     setFocusedNode({ mapId, nodeId });
   }, [activeMapId, switchMap]);
 
-  // Sync URL hash ↔ active map (supports #mapId and #mapId/nodeId)
+  // Apply the INITIAL deep link (#mapId or #mapId/nodeId) once `maps` has loaded.
   useEffect(() => {
-    const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
-    if (hashMapId && maps[hashMapId] && hashMapId !== activeMapId) {
-      switchMap(hashMapId);
+    const [deepLinkMapId, deepLinkNodeId] = pendingDeepLink.current;
+    if (!deepLinkMapId || !Object.prototype.hasOwnProperty.call(maps, deepLinkMapId)) return;
+
+    if (!initialMapSwitchDone.current) {
+      initialMapSwitchDone.current = true;
+      if (deepLinkMapId !== activeMapId) switchMap(deepLinkMapId);
     }
-    if (!initialNodeFocusDone.current && hashNodeId && hashMapId && maps[hashMapId]?.nodes[hashNodeId]) {
-      initialNodeFocusDone.current = true;
-      handleNodeFocus(hashMapId, hashNodeId);
+    if (!deepLinkNodeId) {
+      pendingDeepLink.current = []; // nothing left to resolve
+      return;
     }
+    if (Object.prototype.hasOwnProperty.call(maps[deepLinkMapId].nodes, deepLinkNodeId)) {
+      pendingDeepLink.current = []; // fully consumed
+      handleNodeFocus(deepLinkMapId, deepLinkNodeId);
+    }
+    // else: leave it armed — a later snapshot may still deliver the node
   }, [maps]);
 
   useEffect(() => {
@@ -76,10 +109,17 @@ function AppInner() {
 
   useEffect(() => {
     function onHashChange() {
+      // A genuine hash navigation (browser Back/Forward, or an in-app link
+      // that assigns location.hash) consumes any still-armed deep link, so
+      // a late-resolving deep link can't later yank the user back onto a
+      // map/node they've since navigated away from. history.pushState (used
+      // by the effect above) does not fire hashchange, so this never
+      // disturbs the initial deep link's own resolution.
+      pendingDeepLink.current = [];
       const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
-      if (hashMapId && maps[hashMapId]) {
+      if (hashMapId && Object.prototype.hasOwnProperty.call(maps, hashMapId)) {
         switchMap(hashMapId);
-        if (hashNodeId) {
+        if (hashNodeId && Object.prototype.hasOwnProperty.call(maps[hashMapId].nodes, hashNodeId)) {
           handleNodeFocus(hashMapId, hashNodeId);
         }
       }
@@ -95,6 +135,10 @@ function AppInner() {
   }, [user, activeMap?.name]);
 
   const handleSelectMap = useCallback((mapId: string) => {
+    // A deliberate map switch consumes any still-armed deep link, so a late
+    // Firestore snapshot for the deep-linked map can't later yank the user
+    // (or refocus a node) back onto a map they've already navigated away from.
+    pendingDeepLink.current = [];
     switchMap(mapId);
     trackEvent('switchMap');
     setFocusedNode(null);
@@ -102,18 +146,22 @@ function AppInner() {
   }, [switchMap, trackEvent]);
 
   const handleCreateMap = useCallback((name?: string): string => {
+    pendingDeepLink.current = [];
     const mapId = createMap(name);
     trackEvent('createMap');
     return mapId;
   }, [createMap, trackEvent]);
 
   const handleDeleteMap = useCallback((mapId: string, mapsRecord: Record<string, MindMap>) => {
+    // Deleting the deep-linked map consumes any still-armed deep link, so a
+    // later Firestore snapshot can't resurrect a switch/focus onto it.
+    pendingDeepLink.current = [];
     deleteMap(mapId, mapsRecord);
     trackEvent('deleteMap');
   }, [deleteMap, trackEvent]);
 
-  const handleRenameMap = useCallback((mapId: string, name: string) => {
-    renameMap(mapId, name);
+  const handleRenameMap = useCallback((mapId: string, name: string, syncRootLabel?: boolean) => {
+    renameMap(mapId, name, syncRootLabel);
     trackEvent('renameMap');
   }, [renameMap, trackEvent]);
 

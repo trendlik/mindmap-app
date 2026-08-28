@@ -25,7 +25,7 @@ interface SidebarProps {
   onSelect: (mapId: string) => void;
   onCreate: (name?: string) => string;
   onDelete: (mapId: string, maps: Record<string, MindMap>) => void;
-  onRename: (mapId: string, name: string) => void;
+  onRename: (mapId: string, name: string, syncRootLabel?: boolean) => void;
   onUpdateLabels: (mapId: string, labels: string[]) => void;
   onUpdateDescription: (mapId: string, description: string) => void;
   onReorder: (newOrder: string[]) => void;
@@ -140,6 +140,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [renamingNewMap, setRenamingNewMap] = useState(false);
   const [width, setWidth] = useState(210);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,16 +221,18 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     window.addEventListener('mouseup', onMouseUp);
   }
 
-  function startRename(id: string, name: string) {
+  function startRename(id: string, name: string, isNewMap = false) {
     setEditingId(id);
     setEditValue(name);
+    setRenamingNewMap(isNewMap);
   }
 
   function commitRename() {
     if (editingId) {
       const v = editValue.trim();
-      if (v) onRename(editingId, v);
+      if (v) onRename(editingId, v, renamingNewMap);
       setEditingId(null);
+      setRenamingNewMap(false); // defensive: startRename is the sole authority for this flag (always sets it, `false` by default), so this reset is not load-bearing
     }
   }
 
@@ -237,7 +240,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
     setSearchQuery('');
     setFocusedResultIndex(-1);
     const mapId = onCreate();
-    startRename(mapId, 'new map');
+    startRename(mapId, 'new map', true);
   }
 
   const q = searchQuery.toLowerCase().trim();
@@ -424,7 +427,7 @@ export default function Sidebar({ maps, mapOrder, activeMapId, onSelect, onCreat
                     onBlur={commitRename}
                     onKeyDown={e => {
                       if (e.key === 'Enter') commitRename();
-                      if (e.key === 'Escape') setEditingId(null);
+                      if (e.key === 'Escape') { setEditingId(null); setRenamingNewMap(false); }
                     }}
                     onClick={e => e.stopPropagation()}
                   />
