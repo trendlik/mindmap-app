@@ -416,8 +416,14 @@ export function useMindMapStore(userId: string | null) {
     });
   }, []);
 
-  const renameMap = useCallback((mapId: string, name: string) => {
-    updateMapWithUndo(mapId, m => ({ ...m, name }));
+  const renameMap = useCallback((mapId: string, name: string, syncRootLabel = false) => {
+    updateMapWithUndo(mapId, m => {
+      const next = { ...m, name };
+      if (!syncRootLabel) return next;
+      const root = Object.values(m.nodes).find(n => n.parentId === null);
+      if (!root || root.label !== m.name) return next;
+      return { ...next, nodes: { ...m.nodes, [root.id]: { ...root, label: name } } };
+    });
     logger.logAction('map_renamed', { mapId });
   }, [updateMapWithUndo]);
 

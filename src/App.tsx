@@ -47,17 +47,21 @@ function AppInner() {
   const activeMap = activeMapId ? maps[activeMapId] : null;
 
   const initialNodeFocusDone = useRef(false);
+  const initialHashMapSyncDone = useRef(false);
 
   const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
     if (mapId !== activeMapId) switchMap(mapId);
     setFocusedNode({ mapId, nodeId });
   }, [activeMapId, switchMap]);
 
-  // Sync URL hash ↔ active map (supports #mapId and #mapId/nodeId)
+  // Apply the INITIAL deep link (#mapId or #mapId/nodeId) once `maps` has loaded
+  // (Firestore arrives after mount). Gated to run once so it never overrides a
+  // later in-app map switch (e.g. creating a new map).
   useEffect(() => {
     const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
-    if (hashMapId && maps[hashMapId] && hashMapId !== activeMapId) {
-      switchMap(hashMapId);
+    if (!initialHashMapSyncDone.current && hashMapId && maps[hashMapId]) {
+      initialHashMapSyncDone.current = true;
+      if (hashMapId !== activeMapId) switchMap(hashMapId);
     }
     if (!initialNodeFocusDone.current && hashNodeId && hashMapId && maps[hashMapId]?.nodes[hashNodeId]) {
       initialNodeFocusDone.current = true;
@@ -112,8 +116,8 @@ function AppInner() {
     trackEvent('deleteMap');
   }, [deleteMap, trackEvent]);
 
-  const handleRenameMap = useCallback((mapId: string, name: string) => {
-    renameMap(mapId, name);
+  const handleRenameMap = useCallback((mapId: string, name: string, syncRootLabel?: boolean) => {
+    renameMap(mapId, name, syncRootLabel);
     trackEvent('renameMap');
   }, [renameMap, trackEvent]);
 
