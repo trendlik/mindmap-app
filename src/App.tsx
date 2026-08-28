@@ -65,9 +65,10 @@ function AppInner() {
   //    (or there was no node segment to begin with) is `pendingDeepLink`
   //    cleared.
   // Also cleared by any user-initiated map switch (handleSelectMap /
-  // handleCreateMap / handleNodeFocus) so neither half can later yank the
-  // user back onto, or refocus a node on, a map they've since navigated away
-  // from.
+  // handleCreateMap / handleNodeFocus), by deleting the deep-linked map
+  // (handleDeleteMap), and by a genuine hash navigation (onHashChange) so
+  // none of these can later yank the user back onto, or refocus a node on,
+  // a map they've since navigated away from.
   const initialMapSwitchDone = useRef(false);
   const pendingDeepLink = useRef(location.hash.slice(1).split('/'));
 
@@ -108,6 +109,13 @@ function AppInner() {
 
   useEffect(() => {
     function onHashChange() {
+      // A genuine hash navigation (browser Back/Forward, or an in-app link
+      // that assigns location.hash) consumes any still-armed deep link, so
+      // a late-resolving deep link can't later yank the user back onto a
+      // map/node they've since navigated away from. history.pushState (used
+      // by the effect above) does not fire hashchange, so this never
+      // disturbs the initial deep link's own resolution.
+      pendingDeepLink.current = [];
       const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
       if (hashMapId && Object.prototype.hasOwnProperty.call(maps, hashMapId)) {
         switchMap(hashMapId);
@@ -145,6 +153,9 @@ function AppInner() {
   }, [createMap, trackEvent]);
 
   const handleDeleteMap = useCallback((mapId: string, mapsRecord: Record<string, MindMap>) => {
+    // Deleting the deep-linked map consumes any still-armed deep link, so a
+    // later Firestore snapshot can't resurrect a switch/focus onto it.
+    pendingDeepLink.current = [];
     deleteMap(mapId, mapsRecord);
     trackEvent('deleteMap');
   }, [deleteMap, trackEvent]);
