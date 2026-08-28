@@ -47,7 +47,11 @@ function AppInner() {
   const activeMap = activeMapId ? maps[activeMapId] : null;
 
   const initialNodeFocusDone = useRef(false);
-  const initialHashMapSyncDone = useRef(false);
+  // Deep-link map id captured at first render, before the hash-writing effect
+  // below can overwrite location.hash. Consumed once the map is available and
+  // never re-armed, so a later in-app map switch (e.g. creating a new map)
+  // can't be reverted by a hash the app wrote itself.
+  const pendingDeepLinkMapId = useRef(location.hash.slice(1).split('/')[0]);
 
   const handleNodeFocus = useCallback((mapId: string, nodeId: string) => {
     if (mapId !== activeMapId) switchMap(mapId);
@@ -55,13 +59,14 @@ function AppInner() {
   }, [activeMapId, switchMap]);
 
   // Apply the INITIAL deep link (#mapId or #mapId/nodeId) once `maps` has loaded
-  // (Firestore arrives after mount). Gated to run once so it never overrides a
-  // later in-app map switch (e.g. creating a new map).
+  // (Firestore arrives after mount). Consumes the id captured at first render so
+  // it never overrides a later in-app map switch (e.g. creating a new map).
   useEffect(() => {
     const [hashMapId, hashNodeId] = location.hash.slice(1).split('/');
-    if (!initialHashMapSyncDone.current && hashMapId && maps[hashMapId]) {
-      initialHashMapSyncDone.current = true;
-      if (hashMapId !== activeMapId) switchMap(hashMapId);
+    const deepLinkMapId = pendingDeepLinkMapId.current;
+    if (deepLinkMapId && maps[deepLinkMapId]) {
+      pendingDeepLinkMapId.current = '';
+      if (deepLinkMapId !== activeMapId) switchMap(deepLinkMapId);
     }
     if (!initialNodeFocusDone.current && hashNodeId && hashMapId && maps[hashMapId]?.nodes[hashNodeId]) {
       initialNodeFocusDone.current = true;

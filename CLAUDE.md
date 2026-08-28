@@ -74,7 +74,7 @@ The app uses hash-based routing. Two formats are supported:
 
 The hash is written as `#mapId` only when the active map changes; node focus is never auto-reflected in the address bar. A "copy link" button in the Toolbar writes the full `#mapId/nodeId` URL to the clipboard explicitly.
 
-The hash→active-map deep link is applied once, on initial load (once `maps` has arrived from Firestore) — a one-shot ref gates it. It never overrides a later in-app map switch (e.g. creating a new map via the sidebar), so the app doesn't bounce back to the map named in a stale hash. The separate `hashchange` listener (for browser back/forward navigation) is unaffected and always applies the hash.
+The hash→active-map deep link is captured once, at first render (before any effect can rewrite `location.hash`), and consumed as soon as that map becomes available in `maps` (Firestore arrives after mount). Because the id is captured before the app ever writes its own `#activeMapId` hash, a later in-app map switch (e.g. creating a new map via the sidebar) can't be mistaken for a deep link and bounced back by a stale hash. The separate `hashchange` listener (for browser back/forward navigation) is unaffected and always applies the hash.
 
 ### Auth flow
 `AuthProvider` (context in `src/contexts/AuthContext.tsx`) wraps the app. `AuthGate` component shows a sign-in screen when unauthenticated, or renders children when signed in. The `user.uid` is passed to the store hook to scope Firestore reads/writes.
